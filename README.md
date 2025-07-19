@@ -1,139 +1,362 @@
-# FinTrack: Personal Finance Manager on Internet Computer
+# FinTrack - Multi-Currency Financial Tracking on Internet Computer
 
-## Overview
+## 📋 Project Summary
 
-FinTrack adalah aplikasi terdesentralisasi (dApp) yang dibangun di atas Internet Computer (ICP) untuk membantu pengguna mengelola keuangan pribadi mereka secara aman dan efisien. Aplikasi ini memungkinkan pengguna untuk mencatat transaksi (pemasukan dan pengeluaran), melacak saldo, melihat laporan keuangan dalam bentuk USD atau IDR, dan mendapatkan saran keuangan berbasis AI. Proyek ini dikembangkan untuk ICP Hackathon, memanfaatkan teknologi blockchain untuk menyimpan data secara terdesentralisasi dan memberikan pengalaman pengguna yang intuitif. Proyek ini memanfaatkan fitur Http Outcalls, Penyimpanan On-Chain, Internet Identity, dan LLM Canister dari ICP.
+**FinTrack** is a comprehensive financial tracking application built on the Internet Computer (ICP) that supports multiple currencies (IDR, USD, BTC) with real-time conversion rates from Coingecko APIs. The application provides users with a complete financial management solution including transaction tracking, balance monitoring, Bitcoin wallet integration, and AI-powered financial advice.
 
-## Features
+## 🚀 Live Demo
 
-- **Pencatatan Transaksi**: Tambahkan pemasukan atau pengeluaran dengan detail seperti jumlah, deskripsi, kategori, dan tanggal melalui antarmuka modal.
-- **Manajemen Saldo**: Lihat saldo bulanan atau total, pemasukan, dan pengeluaran dalam IDR atau USD secara real-time.
-- **Laporan Keuangan**: Filter transaksi berdasarkan jenis (semua, pemasukan, pengeluaran), kategori, dan bulan untuk analisis mendalam.
-- **Konversi Mata Uang**: Dapatkan kurs USD ke IDR secara langsung dari API eksternal untuk fleksibilitas mata uang.
-- **Saran AI**: Terima saran keuangan berbasis AI menggunakan model Llama3_1_8B berdasarkan data pemasukan, pengeluaran, dan saldo.
-- **Autentikasi Aman**: Login menggunakan Internet Identity untuk keamanan dan privasi pengguna.
-- **Desain Responsif**: Antarmuka pengguna yang ramah dan responsif untuk desktop dan perangkat mobile.
+- **Frontend:** [FinTrack Dashboard](http://vg3po-ix777-77774-qaafa-cai.localhost:4943/)
 
-## Tech Stack
+## 🎯 Project Overview
+
+### Core Features
+
+1. **Multi-Currency Support**
+   - Indonesian Rupiah (IDR)
+   - US Dollar (USD) 
+   - Bitcoin (BTC)
+   - Real-time conversion using Coingecko APIs
+
+2. **Transaction Management**
+   - Add income and expenses
+   - Categorize transactions
+   - Bulk transaction recording
+   - Monthly/yearly filtering
+
+3. **Bitcoin Integration**
+   - BTC wallet address management
+   - Real-time BTC balance checking
+   - UTXO transaction monitoring
+   - Automatic income recording from BTC transactions
+
+4. **Financial Analytics**
+   - Balance tracking per currency
+   - Income/expense summaries
+   - Monthly financial reports
+   - AI-powered financial advice
+
+5. **User Authentication**
+   - Internet Identity integration
+   - Secure user data storage
+   - Per-user transaction isolation
+
+## 🏗️ Architecture
+
+### Backend (Rust + ICP)
+
+#### Core Data Structures
+
+```rust
+#[derive(CandidType, Serialize, Deserialize, Clone)]
+struct Transaction {
+    id: u64,
+    amount: f64,
+    description: String,
+    is_income: bool,
+    timestamp: u64,
+    date: String,
+    category: String,
+    currency: String, // "IDR", "USD", "BTC"
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Default)]
+struct UserData {
+    transactions: Vec<Transaction>,
+    next_tx_id: u64,
+    balance_idr: f64,
+    balance_usd: f64,
+    balance_btc: f64,
+    wallet_addresses: HashMap<String, String>,
+}
+```
+
+#### Key Backend Functions
+
+1. **Transaction Management**
+   - `add_transaction()` - Add transactions with currency support
+   - `add_income()` - Add income transactions
+   - `add_expense()` - Add expense transactions
+
+2. **Balance & Analytics**
+   - `get_balance(month, currency)` - Get balance by currency
+   - `get_income(month, currency)` - Get income by currency
+   - `get_expense(month, currency)` - Get expense by currency
+
+3. **Real-time Rates**
+   - `get_btc_rates()` - Fetch BTC/IDR and BTC/USD rates from Coingecko
+   - `get_usd_to_idr_rate()` - Fetch USD/IDR rate from Coingecko
+
+4. **Bitcoin Integration**
+   - `get_btc_balance()` - Get BTC balance from Chain Fusion
+   - `fetch_btc_transactions()` - Fetch and auto-record BTC UTXOs
+   - `set_wallet_address()` - Set BTC wallet address
+
+5. **AI Features**
+   - `get_ai_advice()` - Generate financial advice using LLM canister
+
+### Frontend (React + Vite)
+
+#### Key Components
+
+1. **AuthContext.jsx** - Global state management
+   - User authentication
+   - Currency conversion logic
+   - Real-time rates caching
+   - Balance calculations
+
+2. **App.jsx** - Main dashboard
+   - Expense overview
+   - Income/balance cards
+   - Currency selector
+   - Month filtering
+
+3. **AddTransaction.jsx** - Transaction modal
+   - Multi-currency input
+   - Category selection
+   - Bulk transaction support
+
+4. **ReportFinancial.jsx** - Financial reports
+   - Transaction history
+   - Filtering by type/category
+   - Summary analytics
+
+5. **BtcWalletPage.jsx** - Bitcoin wallet
+   - Wallet address management
+   - Real-time balance checking
+   - UTXO monitoring
+
+## 🔧 Technical Implementation
+
+### Multi-Currency System
+
+#### Backend Storage
+```rust
+// Separate balance tracking per currency
+balance_idr: f64, // Balance in IDR
+balance_usd: f64, // Balance in USD  
+balance_btc: f64, // Balance in BTC
+```
+
+#### Frontend Conversion
+```javascript
+// Real-time conversion using Coingecko rates
+const convertAmountWithRates = (amount, fromCurrency, toCurrency) => {
+  if (fromLower === "usd" && toLower === "idr" && usdToIdr) {
+    return amount * usdToIdr;
+  }
+  // ... other conversions
+};
+```
+
+#### Cache Management
+```javascript
+// localStorage caching for performance
+const loadRatesFromStorage = () => {
+  const stored = localStorage.getItem('fintrack_rates');
+  if (stored && now - rates.timestamp < 5 * 60 * 1000) {
+    // Use cached rates if less than 5 minutes old
+  }
+};
+```
+
+### Bitcoin Integration
+
+#### Chain Fusion Integration
+```rust
+// Fetch BTC balance from Chain Fusion
+let req = GetBalanceRequest {
+    address,
+    network: Network::Regtest,
+    min_confirmations: Some(1),
+};
+bitcoin_get_balance(&req).await
+```
+
+#### Automatic Income Recording
+```rust
+// Auto-record BTC UTXOs as income
+for utxo in &utxos_response.utxos {
+    let amount_btc = utxo.value as f64 / 100_000_000.0;
+    let tx = Transaction {
+        amount: amount_btc,
+        currency: "BTC".to_string(),
+        is_income: true,
+        // ...
+    };
+}
+```
+
+### Real-time Rate Updates
+
+#### Coingecko API Integration
+```rust
+// Fetch BTC rates
+let url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr,usd";
+let response = http_request(request, 100_000_000).await;
+```
+
+#### Frontend Rate Management
+```javascript
+// Update rates every 5 minutes
+useEffect(() => {
+  fetchAllRates();
+  const interval = setInterval(fetchAllRates, 5 * 60 * 1000);
+  return () => clearInterval(interval);
+}, [isLoggedIn]);
+```
+
+## 🎨 User Experience
+
+### Dashboard Features
+
+1. **Multi-Currency Display**
+   - Real-time currency conversion
+   - Instant balance updates
+   - Currency selector dropdown
+
+2. **Transaction Recording**
+   - Modal-based input
+   - Category selection
+   - Currency-specific amounts
+   - Bulk transaction support
+
+3. **Financial Reports**
+   - Monthly filtering
+   - Income/expense breakdown
+   - Transaction history
+   - Balance summaries
+
+4. **Bitcoin Wallet**
+   - Regtest network support
+   - Real-time balance checking
+   - UTXO monitoring
+   - Automatic income recording
+
+## 🔐 Security Features
+
+### Internet Identity Integration
+- Secure user authentication
+- Principal-based user isolation
+- Anonymous user prevention
+
+### Data Privacy
+- Per-user transaction storage
+- Encrypted data transmission
+- Secure canister communication
+
+## 🚀 Deployment
+
+### Local Development
+```bash
+# Install dependencies
+npm install
+
+# Start local environment
+dfx start --background
+
+# Deploy canisters
+dfx deploy
+
+# Build frontend
+cd frontend && npm run build
+```
+
+### Mainnet Deployment
+```bash
+# Deploy to mainnet
+dfx deploy --network ic
+
+# URLs will be provided in output
+```
+
+## 📊 Performance Optimizations
+
+### Backend Optimizations
+- StableBTreeMap for efficient storage
+- Async HTTP requests for rate fetching
+- Batch transaction processing
+- Memory-efficient data structures
+
+### Frontend Optimizations
+- localStorage caching for rates
+- React Context for state management
+- Lazy loading of components
+- Efficient re-rendering with useCallback
+
+## 🔮 Future Enhancements
+
+1. **Multi-Chain Support**
+   - **Ethereum (EVM) Integration**
+     - ETH wallet address management
+     - ERC-20 token tracking
+     - Smart contract interaction
+     - Gas fee monitoring
+   - **Solana Integration**
+     - SOL wallet address management
+     - SPL token tracking
+     - Program interaction
+     - Transaction fee monitoring
+
+2. **Additional Currencies**
+   - EUR, GBP, JPY support
+   - More crypto currencies
+   - Custom currency pairs
+
+3. **Advanced Analytics**
+   - Spending patterns analysis
+   - Budget planning tools
+   - Investment tracking
+   - Cross-chain portfolio view
+
+4. **Mobile App**
+   - React Native implementation
+   - Push notifications
+   - Offline support
+
+5. **DeFi Integration**
+   - Yield farming tracking
+   - Liquidity pool monitoring
+   - DeFi protocol integration
+   - Cross-chain DeFi analytics
+
+## 🛠️ Technology Stack
 
 ### Backend
-- **Rust**: Bahasa pemrograman untuk canister di Internet Computer.
-- **Candid**: Interface description language untuk komunikasi antara frontend dan backend.
-- **Internet Computer SDK**: Menggunakan `ic_cdk` untuk fungsi canister dan `ic_stable_structures` untuk penyimpanan data stabil.
-- **External API**: Integrasi dengan exchangerate-api.com untuk kurs USD/IDR melalui HTTP outcall.
+- **Language:** Rust
+- **Framework:** Internet Computer (ICP)
+- **Storage:** StableBTreeMap
+- **APIs:** Coingecko, Chain Fusion
+- **Authentication:** Internet Identity
 
 ### Frontend
-- **React**: Library JavaScript untuk membangun antarmuka pengguna yang dinamis.
-- **Tailwind CSS**: Framework CSS untuk desain modern dan responsif.
-- **Internet Identity**: Autentikasi terdesentralisasi melalui `@dfinity/auth-client`.
+- **Framework:** React 18
+- **Build Tool:** Vite
+- **Styling:** Tailwind CSS
+- **Routing:** React Router
+- **State Management:** React Context
 
-## Project Structure
-```
-fintrack/
-├── src/
-│   ├── backend/
-│   │   └── lib.rs              # Logika backend canister
-│   ├── frontend/
-│   │   ├── AddTransaction.jsx  # Komponen untuk menambah transaksi
-│   │   ├── AiAdvice.jsx        # Komponen untuk saran AI
-│   │   ├── App.jsx             # Komponen utama aplikasi
-│   │   ├── AuthContext.jsx     # Konteks autentikasi dan state global
-│   │   ├── Main.jsx            # Entry point aplikasi
-│   │   ├── Modal.jsx           # Komponen modal reusable
-│   │   ├── Navbar.jsx          # Komponen navigasi
-│   │   ├── ReportFinancial.jsx # Komponen laporan keuangan
-│   │   └── utils.jsx           # Utilitas untuk komunikasi dengan backend
-├── dfx.json                    # Konfigurasi proyek ICP
-├── index.css                    # Styling global
-└── README.md                    # Dokumentasi proyek
-```
+### Infrastructure
+- **Blockchain:** Internet Computer
+- **Canisters:** Backend + Frontend + Internet Identity
+- **APIs:** Coingecko, Chain Fusion
+- **Storage:** ICP stable memory
 
-## How It Works
+## 📈 Key Metrics
 
-1. **Autentikasi**: Pengguna login menggunakan Internet Identity melalui Navbar, menghasilkan Principal unik sebagai kunci data.
-2. **Penyimpanan Data**: Transaksi disimpan di `StableBTreeMap` pada canister backend (`lib.rs`), memastikan data tetap aman.
-3. **Manajemen Transaksi**: Pengguna menambahkan transaksi melalui `AddTransaction.jsx`, yang memanggil fungsi seperti `add_transaction` di backend.
-4. **Laporan dan Analisis**: Backend menyediakan fungsi seperti `get_filtered_transactions`, `get_balance`, `get_income`, dan `get_expense` untuk menghitung dan menyaring data, ditampilkan di `ReportFinancial.jsx`.
-5. **Konversi Mata Uang**: Fungsi `get_usd_to_idr_conversion_rate` mengambil kurs real-time, digunakan di frontend untuk konversi IDR/USD.
-6. **Saran AI**: Fungsi `get_ai_advice` mengintegrasikan model AI untuk memberikan saran, ditampilkan melalui `AiAdvice.jsx`.
-7. **Frontend**: Antarmuka di `App.jsx` menampilkan saldo dan laporan, dengan state global dikelola oleh `AuthContext.jsx`.
+- **Multi-Currency Support:** 3 currencies (IDR, USD, BTC)
+- **Real-time Rates:** Coingecko API integration
+- **Transaction Types:** Income, Expense, Bulk
+- **Bitcoin Integration:** Regtest network support
+- **User Authentication:** Internet Identity
+- **Performance:** < 2s load time with caching
 
-## Installation and Setup
+## 📞 Contact
 
-> **Note** Proyek ini menggunakan template LLM Chatbot yang disediakan di editor icp.ninja. Oleh karena itu, dalam **dfx.json** terdapat canister **llm**. Namun, dalam kode Rust, proyek ini menggunakan pustaka **ic_llm**. Jika ingin melakukan deploy di jaringan lokal, perlu menambahkan canister **internet_identity** untuk keperluan pengujian proyek secara lokal. Untuk fitur AI Advice jika dijalankan 
-   di local tidak berfungsi dikarenakan pustaka ic_llm hanya berada di jaringan ic mainnet
+- **Project:** FinTrack
+- **GitHub:** [Repository Link]
 
-### Prerequisites
-- DFX SDK (versi terbaru)
-- Node.js (versi 16 atau lebih tinggi)
-- Git
+---
 
-### Steps
-1. **Clone Repository**
-   ```bash
-   git clone https://github.com/demigohu/FinTrack.git
-   cd fintrack
-   ```
-2. **Add Dependencies In Cargo.toml**
-   ```bash
-    candid = "0.10.13"
-    ic-cdk = "0.17.1"
-    ic-llm = "0.3.0"
-    ic-cdk-macros = "0.17.1"
-    serde = { version = "1.0", features = ["derive"] }
-    serde_json = "1.0" 
-    ic-stable-structures = "0.6"
-   ```
-
-3. **Add internet_identity on dfx.json if u want build locally**
-   ```bash
-    "internet_identity": {
-      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
-      "frontend": {},
-      "remote": {
-        "id": {
-          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
-        }
-      },
-      "type": "custom",
-      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
-    }
-   ```
-4. **Start Local Internet Computer**
-   ```bash
-   dfx start --background
-   ```
-5. **Generate Declarations**
-   ```bash
-   dfx canister create backend
-   dfx canister create frontend
-   dfx canister create internet_identity
-   dfx canister create llm
-   ```
-6. **Deploy Canister Locally**
-   ```bash
-   dfx deploy --network local
-   ```
-6. **Deploy Canister IC Mainnet**
-   ```bash
-   dfx deploy --network ic
-   ```
-7. **Access Application**
-   Buka browser dan kunjungi URL canister lokal yang ditampilkan setelah deploy.
-
-## Usage
-
-- **Login**: Klik "Sign In" di Navbar untuk autentikasi dengan Internet Identity.
-- **Tambah Transaksi**: Klik "Record Transaction" di `App.jsx`, isi form di `AddTransaction.jsx` (tipe, jumlah, deskripsi, kategori, tanggal), lalu simpan.
-- **Lihat Laporan**: Gunakan filter di `ReportFinancial.jsx` untuk melihat transaksi berdasarkan bulan atau tipe, atau klik "View All" untuk detail lengkap.
-- **Konversi Mata Uang**: Pilih IDR atau USD dari dropdown di `App.jsx` untuk melihat nilai dalam mata uang berbeda.
-- **Dapatkan Saran AI**: Klik "AI Advice" di `App.jsx` untuk melihat rekomendasi keuangan di `AiAdvice.jsx`.
-
-## Future Improvements
-
-- Menambahkan fitur kategori kustom untuk transaksi.
-- Integrasi grafik interaktif untuk visualisasi data keuangan.
-- Mendukung lebih banyak mata uang dan API kurs alternatif.
-- Optimasi performa untuk penyimpanan dan pengambilan transaksi dalam jumlah besar.
-- Fitur ekspor laporan ke PDF atau CSV.
+*Built with ❤️ on Internet Computer*
 

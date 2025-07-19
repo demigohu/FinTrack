@@ -4,14 +4,19 @@ import App from './App.jsx';
 import '../index.css';
 import { Navbar } from './Navbar.jsx';
 import { AuthProvider } from "./AuthContext.jsx";
+import { BtcWalletPage } from './BtcWalletPage.jsx';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-      <main>
-        <AuthProvider>
-          <Navbar />
-          <App />
-        </AuthProvider>
-      </main>
+    <BrowserRouter>
+      <AuthProvider>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/btc-wallet" element={<BtcWalletPage />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -16,9 +16,10 @@ const categories = [
 
 export function AddTransaction({ isOpen, onClose }) {
   const { addTransaction, getBalance, getIncome, getExpense, getReportByMonth } = utilsNx();
-  const { mainBalances, mainIncome, mainExpense, transactions, reportBalances, reportIncome, reportExpense, setMainBalances, setMainIncome, setMainExpense, setTransactions, setReportBalances, setReportExpense, setReportIncome, monthMain, monthReport, currency, convertCurrency, exchangeRate, setActiveReportFilter } = useContext(AuthContext);  // Ambil saldo dari AuthContext
+  const { mainBalances, mainIncome, mainExpense, transactions, reportBalances, reportIncome, reportExpense, setMainBalances, setMainIncome, setMainExpense, setTransactions, setReportBalances, setReportExpense, setReportIncome, monthMain, monthReport, currency, convertCurrency, exchangeRate, setActiveReportFilter, usdToIdr, btcToIdr } = useContext(AuthContext);  // Ambil saldo dari AuthContext
 
   const [tx, setTx] = useState([]);
+  const [modalCurrency, setModalCurrency] = useState("idr"); // State untuk currency modal
   const getTodayDate = () => {
     const today = new Date();
     return today.toISOString().split("T")[0]; // Format YYYY-MM-DD
@@ -66,7 +67,12 @@ export function AddTransaction({ isOpen, onClose }) {
       return;
     }
 
-    const newTransaction = { ...formData };
+    const newTransaction = { 
+      ...formData,
+      currency: modalCurrency // Tambahkan currency yang dipilih di modal
+    };
+    console.log("Adding transaction with currency:", modalCurrency);
+    console.log("New transaction:", newTransaction);
     setTx([...tx, newTransaction]);
 
     setFormData({
@@ -90,43 +96,48 @@ export function AddTransaction({ isOpen, onClose }) {
 
     console.log("Recorded Transactions:", tx);
     try {
-      const amounts = tx.map(data => currency === "idr" ? Number(data.amount) : Number(data.amount) * exchangeRate);
+      // Konversi amount berdasarkan currency yang dipilih user
+          // Simpan amount sesuai currency yang dipilih user
+      const amounts = tx.map(data => Number(data.amount));
+      const currencies = tx.map(data => (data.currency || modalCurrency).toUpperCase()); // Gunakan currency dari transaksi atau fallback ke currency modal
       const descriptions = tx.map(data => data.description);
       const categories = tx.map(data => data.category);
       const isIncomes = tx.map(data => data.type);
       const timestamps = tx.map(data => Math.floor(new Date(data.date).getTime() * 1e6)); // Nanodetik
       console.log("Transactions amount:", amounts);
+      console.log("Transactions currencies:", currencies);
       console.log("Transactions descriptions:", descriptions);
       console.log("Transactions categories:", categories);
       console.log("Transactions isIncomes:", isIncomes);
       console.log("Transactions timestamps:", timestamps);
+      console.log("Current modal currency:", modalCurrency);
+      console.log("Transaction list:", tx);
 
-      const result = await addTransaction(amounts, descriptions, categories, isIncomes, timestamps);
+      const result = await addTransaction(amounts, descriptions, categories, isIncomes, timestamps, currencies);
       console.log("Transactions Submitted:", result);
       alert("Transactions Submitted");
       setTx([]);
       onClose();
-      const balance = await getBalance(monthMain);
-      const income = await getIncome(monthMain);
-      const expense = await getExpense(monthMain);
-      const balanceReport = await getBalance("");
-      const incomeReport = await getIncome("");
-      const expenseReport = await getExpense("");
-      const report = await getReportByMonth(monthReport);
-      console.log('balance change: ', balance.Ok);
-      console.log('income change: ', income.Ok);
-      console.log('expense change: ', expense.Ok);
-      console.log('balance change: ', balanceReport.Ok);
-      console.log('income change: ', incomeReport.Ok);
-      console.log('expense change: ', expenseReport.Ok);
-      console.log('report change: ', report);
-      setMainBalances(balance.Ok);
-      setMainIncome(income.Ok);
-      setMainExpense(expense.Ok);
-      setReportBalances(balanceReport.Ok);
-      setReportIncome(incomeReport.Ok);
-      setReportExpense(expenseReport.Ok);
-      setTransactions(report.Ok || []);
+      
+      // Gunakan fungsi dari AuthContext yang sudah diperbaiki
+      const { 
+        handleGetMainBalances, 
+        handleGetMainIncome, 
+        handleGetMainExpense,
+        handleGetReportBalances,
+        handleGetReportIncome,
+        handleGetReportExpense,
+        handleGetReportByMonth
+      } = useContext(AuthContext);
+      
+      // Refresh semua data dengan konversi yang benar
+      await handleGetMainBalances(monthMain);
+      await handleGetMainIncome(monthMain);
+      await handleGetMainExpense(monthMain);
+      await handleGetReportBalances("");
+      await handleGetReportIncome("");
+      await handleGetReportExpense("");
+      await handleGetReportByMonth(monthReport);
       setActiveReportFilter("all");
     } catch (error) {
       console.error('Error submitting transactions:', error);
@@ -216,10 +227,31 @@ export function AddTransaction({ isOpen, onClose }) {
           </label>
         </div>
 
+        {/* Currency Selector */}
+        <div className="text-center mb-3">
+          <label className="mb-3 text-base">
+            Currency:
+            <select
+              className="bg-transparent ml-4 w-[100px] outline-none border border-gray-300 rounded px-2 py-1"
+              value={modalCurrency}
+              onChange={(e) => {
+                console.log("Currency changed to:", e.target.value);
+                setModalCurrency(e.target.value);
+              }}
+            >
+              <option value="idr">IDR</option>
+              <option value="usd">USD</option>
+              <option value="btc">BTC</option>
+            </select>
+          </label>
+        </div>
+
         {/* Amount Input */}
         <div className="mb-3">
           <div className="flex items-center rounded-full bg-[#d9e6e8] px-6 py-2 text-center text-xl font-medium">
-            <span className="mr-2">{currency === "idr" ? "Rp" : "$"}</span>
+            <span className="mr-2">
+              {modalCurrency === "idr" ? "Rp" : modalCurrency === "usd" ? "$" : modalCurrency === "btc" ? "₿" : "Rp"}
+            </span>
             <input
               type="number"
               name="amount"
@@ -295,7 +327,14 @@ export function AddTransaction({ isOpen, onClose }) {
                 </div>
                 <div className="flex items-center">
                   <span className="bg-gray-100 text-blue-600 px-3 py-1 rounded-full">
-                    {currency === "idr" ? `Rp. ${Number(tx.amount).toLocaleString("id-ID")}` : `$ ${tx.amount.toFixed(2)}`}
+                    {(tx.currency || modalCurrency) === "idr" 
+                      ? `Rp. ${Number(tx.amount).toLocaleString("id-ID")}` 
+                      : (tx.currency || modalCurrency) === "usd" 
+                        ? `$ ${Number(tx.amount).toFixed(2)}` 
+                        : (tx.currency || modalCurrency) === "btc" 
+                          ? `₿ ${Number(tx.amount).toFixed(8)}` 
+                          : `Rp. ${Number(tx.amount).toLocaleString("id-ID")}`
+                    }
                   </span>
                   <button
                     className="ml-3 text-red-500"

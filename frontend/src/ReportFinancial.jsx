@@ -57,7 +57,7 @@ const TransactionItem = ({ tx, convertCurrency }) => (
       </div>
     </div>
     <p className={`font-bold ${tx.is_income ? "text-green-500" : "text-red-500"}`}>
-      {convertCurrency(tx.amount)}
+      {convertCurrency(tx.amount, tx.currency)}
     </p>
   </div>
 );

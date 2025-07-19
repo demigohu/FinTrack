@@ -7,7 +7,9 @@ import { AiAdvice } from './AiAdvice.jsx'
 
 const App = () => {
   const { updateProfile, getProfile, getBalance, getIncome, getExpense } = utilsNx();
-  const { mainBalances, mainIncome, mainExpense, setMainBalances, setMainIncome, setMainExpense, monthMain, setMonthMain, currency, setCurrency, convertCurrency } = useContext(AuthContext); 
+  const { mainBalances, mainIncome, mainExpense, setMainBalances, setMainIncome, setMainExpense, monthMain, setMonthMain, currency, setCurrency, convertCurrency } = useContext(AuthContext);
+  const { walletAddress, setWalletAddress, btcBalance, fetchBtcBalance, btcTransactions, fetchBtcTransactions } = useContext(AuthContext);
+  const [inputAddress, setInputAddress] = useState("");
 
   const [isOpenRecordTx, setIsOpenRecordTx] = useState(false);
   const [isOpenAiAdvice, setIsOpenAiAdvice] = useState(false);
@@ -22,19 +24,16 @@ const App = () => {
     console.log('month change 1: ', month);
     setMonthMain(month);
     console.log('month change: 2', monthMain);
-    const balance = await getBalance(month);
-    const income = await getIncome(month);
-    const expense = await getExpense(month);
-    console.log('balance change: ', balance.Ok);
-    console.log('income change: ', income.Ok);
-    console.log('expense change: ', expense.Ok);
-    setMainBalances(balance.Ok);
-    setMainIncome(income.Ok);
-    setMainExpense(expense.Ok);
+    // Gunakan fungsi dari AuthContext yang sudah diperbaiki
+    const { handleGetMainBalances, handleGetMainIncome, handleGetMainExpense } = useContext(AuthContext);
+    await handleGetMainBalances(month);
+    await handleGetMainIncome(month);
+    await handleGetMainExpense(month);
   }
 
   return (
     <div>
+      {/* Hapus section BTC Wallet di sini, hanya render dashboard utama */}
       <div className="bg-[url('/bg-main.svg')] bg-cover text-white">
         <div className="max-w-screen-xl mx-auto p-8 sm:p-14 bg-cover flex flex-col items-center justify-center">
 
@@ -53,16 +52,16 @@ const App = () => {
             <h1 className="text-3xl sm:text-5xl">{convertCurrency(mainExpense)}</h1>
             <select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                console.log('Currency changed to:', e.target.value);
+              }}
               id="currency"
-              className="text-sm rounded-lg h-[30px] bg-transparent cursor-pointer outline-none"
+              className="text-sm rounded-lg h-[30px] bg-white text-black cursor-pointer outline-none px-2 ml-2"
             >
-              <option className="text-black" value="idr">
-                IDR
-              </option>
-              <option className="text-black" value="usd">
-                USD
-              </option>
+              <option value="idr">IDR</option>
+              <option value="usd">USD</option>
+              <option value="btc">BTC</option>
             </select>
           </div>
 

@@ -81,11 +81,11 @@ export function utilsNx() {
   };
 
   // Fungsi untuk menambah transaksi (bulk)
-  const addTransaction = async (amounts, descriptions, categories, isIncomes, timestamps) => {
+  const addTransaction = async (amounts, descriptions, categories, isIncomes, timestamps, currencies) => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
     // Konversi timestamps ke BigInt untuk Candid
     const timestampsBigInt = timestamps.map(ts => BigInt(ts));
-    return await actor.add_transaction(amounts, descriptions, categories, isIncomes, timestampsBigInt);
+    return await actor.add_transaction(amounts, descriptions, categories, isIncomes, timestampsBigInt, currencies);
   };
 
   // Fungsi untuk menambah income (bulk)
@@ -104,10 +104,10 @@ export function utilsNx() {
     return await actor.add_expense(amounts, descriptions, categories, timestampsStr);
   };
 
-  // Fungsi untuk mendapatkan conversion rate USD ke IDR
+  // Fungsi untuk mendapatkan kurs USD/IDR dari backend (Coingecko)
   const getUsdToIdrConversionRate = async () => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
-    return await actor.get_usd_to_idr_conversion_rate();
+    return await actor.get_usd_to_idr_rate();
   };
 
   // Fungsi untuk mendapatkan laporan transaksi
@@ -135,19 +135,19 @@ export function utilsNx() {
   };
 
   // Fungsi untuk mendapatkan saldo
-  const getBalance = async (month) => {
+  const getBalance = async (month, currency = "IDR") => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
-    return await actor.get_balance(month);
+    return await actor.get_balance(month, currency);
   };
 
-  const getIncome = async (month) => {
+  const getIncome = async (month, currency = "IDR") => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
-    return await actor.get_income(month);
+    return await actor.get_income(month, currency);
   };
 
-  const getExpense = async (month) => {
+  const getExpense = async (month, currency = "IDR") => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
-    return await actor.get_expense(month);
+    return await actor.get_expense(month, currency);
   };
 
   // Fungsi untuk mendapatkan analisis
@@ -165,6 +165,30 @@ export function utilsNx() {
   const getFilteredTransactions = async (transactionType, category, yearMonth) => {
     if (!actor) throw new Error('Not authenticated. Please login first.');
     return await actor.get_filtered_transactions(transactionType, category, yearMonth);
+  };
+
+  // Fungsi untuk set wallet address BTC
+  const setWalletAddress = async (chain, address) => {
+    if (!actor) throw new Error('Not authenticated. Please login first.');
+    return await actor.set_wallet_address(chain, address);
+  };
+
+  // Fungsi untuk fetch transaksi BTC (trigger otomasi pemasukan di backend)
+  const fetchBtcTransactions = async () => {
+    if (!actor) throw new Error('Not authenticated. Please login first.');
+    return await actor.fetch_btc_transactions();
+  };
+
+  // Fungsi untuk get saldo BTC (dalam satoshi)
+  const getBtcBalance = async () => {
+    if (!actor) throw new Error('Not authenticated. Please login first.');
+    return await actor.get_btc_balance();
+  };
+
+  // Fungsi untuk mendapatkan kurs BTC/IDR dan BTC/USD dari backend
+  const getBtcRates = async () => {
+    if (!actor) throw new Error('Not authenticated. Please login first.');
+    return await actor.get_btc_rates();
   };
 
   return {
@@ -190,6 +214,10 @@ export function utilsNx() {
     getUsdToIdrConversionRate,
     isLoggedIn,
     isAuth,
-    getFilteredTransactions
+    getFilteredTransactions,
+    setWalletAddress,
+    fetchBtcTransactions,
+    getBtcBalance,
+    getBtcRates,
   };
 }

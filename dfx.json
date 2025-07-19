@@ -24,16 +24,16 @@
       "source": ["frontend/dist"],
       "type": "assets"
     },
-    "llm": {
-      "candid": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.did",
-      "type": "custom",
-      "specified_id": "w36hm-eqaaa-aaaal-qr76a-cai",
+    "internet_identity": {
+      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+      "frontend": {},
       "remote": {
         "id": {
-          "ic": "w36hm-eqaaa-aaaal-qr76a-cai"
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
-      "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
+      "type": "custom",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
     }
   },
   "output_env_file": ".env"
