@@ -354,7 +354,7 @@ dfx deploy --network ic
 ## 📞 Contact
 
 - **Project:** FinTrack
-- **GitHub:** [Repository Link]
+- **GitHub:** [https://github.com/demigohu/FinTrack]
 
 ---
 
