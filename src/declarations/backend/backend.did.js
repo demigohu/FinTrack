@@ -44,8 +44,13 @@ export const idlFactory = ({ IDL }) => {
   const Transaction = IDL.Record({
     'id' : IDL.Nat64,
     'conversion_rate' : IDL.Opt(IDL.Float64),
+    'fee' : IDL.Opt(IDL.Float64),
+    'confirmations' : IDL.Opt(IDL.Nat32),
+    'transaction_type' : IDL.Opt(IDL.Text),
+    'source' : IDL.Opt(IDL.Text),
     'is_income' : IDL.Bool,
     'date' : IDL.Text,
+    'txid' : IDL.Opt(IDL.Text),
     'description' : IDL.Text,
     'currency' : IDL.Text,
     'timestamp' : IDL.Nat64,
@@ -74,8 +79,13 @@ export const idlFactory = ({ IDL }) => {
         [Result],
         [],
       ),
+    'add_manual_transaction' : IDL.Func(
+        [IDL.Float64, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [Result],
+        [],
+      ),
     'add_transaction' : IDL.Func(
-        [IDL.Float64, IDL.Text, IDL.Text, IDL.Bool, IDL.Text],
+        [IDL.Float64, IDL.Text, IDL.Text, IDL.Bool, IDL.Text, IDL.Text],
         [Result],
         [],
       ),
@@ -87,6 +97,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'fetch_btc_transactions' : IDL.Func([], [Result_1], []),
     'format_btc_amount' : IDL.Func([IDL.Float64], [IDL.Text], ['query']),
+    'get_all_rates' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text, IDL.Float64))],
+        ['query'],
+      ),
     'get_balance' : IDL.Func(
         [IDL.Text, IDL.Opt(IDL.Text)],
         [IDL.Float64],
@@ -116,7 +131,17 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'get_transactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+    'get_transactions_by_currency' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(Transaction)],
+        ['query'],
+      ),
     'get_transactions_by_period' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(Transaction)],
+        ['query'],
+      ),
+    'get_transactions_by_source' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Transaction)],
         ['query'],
@@ -141,6 +166,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'set_wallet_address' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
+    'sync_blockchain_transactions' : IDL.Func([], [Result], []),
     'update_budget_spent' : IDL.Func([], [Result], []),
     'validate_btc_address' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   });

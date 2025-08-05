@@ -1,22 +1,14 @@
 use crate::models::{Transaction, UserData};
 use crate::utils;
 use candid::CandidType;
+use ic_cdk::bitcoin_canister::{self, Network, GetBalanceRequest, GetUtxosRequest};
 use serde::{Deserialize, Serialize};
 
-// Bitcoin canister types (simplified for compatibility)
-#[derive(Debug, Clone, CandidType, Serialize, Deserialize)]
-pub struct GetBalanceRequest {
-    pub address: String,
-    pub network: String,
-    pub min_confirmations: Option<u32>,
-}
+// Bitcoin API configuration for regtest
+const BITCOIN_NETWORK: Network = Network::Regtest;
 
-#[derive(Debug, Clone, CandidType, Serialize, Deserialize)]
-pub struct GetUtxosRequest {
-    pub address: String,
-    pub network: String,
-    pub filter: Option<String>,
-}
+// Bitcoin canister types (simplified for compatibility)
+
 
 #[derive(Debug, Clone, CandidType, Serialize, Deserialize)]
 pub struct GetUtxosResponse {
@@ -35,49 +27,49 @@ pub struct OutPoint {
     pub vout: u32,
 }
 
-#[derive(Debug, Clone, CandidType, Serialize, Deserialize)]
-pub enum Network {
-    Mainnet,
-    Regtest,
-    Testnet,
-}
 
-impl Network {
-    pub fn to_string(&self) -> String {
-        match self {
-            Network::Mainnet => "mainnet".to_string(),
-            Network::Regtest => "regtest".to_string(),
-            Network::Testnet => "testnet".to_string(),
-        }
-    }
-}
 
 pub async fn get_btc_balance(user_data: &UserData) -> Result<u64, String> {
     let address = user_data.wallet_addresses.get("BTC")
         .ok_or("BTC address not set for user")?;
     
-    // Validate BTC address
-    if !validate_btc_address(address) {
-        return Err("Invalid BTC address format".to_string());
+    // Use real Bitcoin API to get balance
+    match bitcoin_canister::bitcoin_get_balance(&GetBalanceRequest {
+        address: address.clone(),
+        network: BITCOIN_NETWORK,
+        min_confirmations: Some(1),
+    }).await {
+        Ok(balance) => Ok(balance),
+        Err(e) => Err(format!("Bitcoin API error: {:?}", e)),
     }
-    
-    // Placeholder implementation - in production, use actual Bitcoin canister
-    // For now, return a mock balance
-    Ok(0) // Return 0 for now, implement with actual Bitcoin canister
 }
 
 pub async fn fetch_btc_transactions(user_data: &mut UserData) -> Result<GetUtxosResponse, String> {
     let address = user_data.wallet_addresses.get("BTC")
         .ok_or("BTC address not set for user")?;
     
-    // Validate BTC address
-    if !validate_btc_address(address) {
-        return Err("Invalid BTC address format".to_string());
+    // Use real Bitcoin API to get UTXOs
+    match bitcoin_canister::bitcoin_get_utxos(&GetUtxosRequest {
+        address: address.clone(),
+        network: BITCOIN_NETWORK,
+        filter: None,
+    }).await {
+        Ok(utxos_response) => {
+            // Convert to our format
+            let utxos_vec: Vec<Utxo> = utxos_response.utxos.into_iter().map(|utxo| {
+                Utxo {
+                    outpoint: OutPoint {
+                        txid: utxo.outpoint.txid,
+                        vout: utxo.outpoint.vout,
+                    },
+                    value: utxo.value,
+                }
+            }).collect();
+            
+            Ok(GetUtxosResponse { utxos: utxos_vec })
+        },
+        Err(e) => Err(format!("Bitcoin API error: {:?}", e)),
     }
-    
-    // Placeholder implementation - in production, use actual Bitcoin canister
-    // For now, return empty response
-    Ok(GetUtxosResponse { utxos: vec![] })
 }
 
 pub fn sync_utxos_to_transactions(user_data: &mut UserData, utxos_response: &GetUtxosResponse) -> Result<String, String> {
@@ -106,10 +98,16 @@ pub fn sync_utxos_to_transactions(user_data: &mut UserData, utxos_response: &Get
                 is_income: true,
                 timestamp: now,
                 date: utils::timestamp_to_date(now),
-                category: "Crypto-BTC".to_string(),
+                category: "Crypto_Received".to_string(),
                 converted_amount: None,
                 converted_currency: None,
                 conversion_rate: None,
+                // NEW FIELDS for blockchain transactions
+                transaction_type: Some("received".to_string()),
+                source: Some("blockchain".to_string()),
+                txid: Some(txid_hex),
+                confirmations: Some(6), // Default confirmation
+                fee: None,
             };
             
             user_data.transactions.push(tx);
@@ -126,7 +124,8 @@ pub fn validate_btc_address(address: &str) -> bool {
     // Basic validation for BTC address
     // In production, use proper BTC address validation library
     address.len() >= 26 && address.len() <= 35 && 
-    (address.starts_with("1") || address.starts_with("3") || address.starts_with("bc1"))
+    (address.starts_with("1") || address.starts_with("3") || 
+     address.starts_with("bc1") || address.starts_with("bcrt1"))
 }
 
 pub fn calculate_btc_value_in_idr(btc_amount: f64, btc_to_idr_rate: f64) -> f64 {
@@ -156,4 +155,17 @@ pub fn get_network_string(network: Network) -> &'static str {
         Network::Regtest => "regtest",
         Network::Testnet => "testnet",
     }
+}
+
+
+
+// Sync blockchain transactions to unified system
+pub async fn sync_blockchain_transactions(user_data: &mut UserData) -> Result<String, String> {
+    // Fetch latest UTXOs from Bitcoin canister
+    let utxos_response = fetch_btc_transactions(user_data).await?;
+    
+    // Convert UTXOs to transactions
+    let result = sync_utxos_to_transactions(user_data, &utxos_response)?;
+    
+    Ok(format!("Synced {} new blockchain transactions", result))
 } 

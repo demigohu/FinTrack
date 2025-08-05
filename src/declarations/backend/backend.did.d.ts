@@ -46,8 +46,13 @@ export type Result_2 = { 'Ok' : bigint } |
 export interface Transaction {
   'id' : bigint,
   'conversion_rate' : [] | [number],
+  'fee' : [] | [number],
+  'confirmations' : [] | [number],
+  'transaction_type' : [] | [string],
+  'source' : [] | [string],
   'is_income' : boolean,
   'date' : string,
+  'txid' : [] | [string],
   'description' : string,
   'currency' : string,
   'timestamp' : bigint,
@@ -63,14 +68,19 @@ export interface _SERVICE {
     [string, string, number, number, string, string, string, string],
     Result
   >,
+  'add_manual_transaction' : ActorMethod<
+    [number, string, string, string, string, string],
+    Result
+  >,
   'add_transaction' : ActorMethod<
-    [number, string, string, boolean, string],
+    [number, string, string, boolean, string, string],
     Result
   >,
   'btc_to_satoshis' : ActorMethod<[number], bigint>,
   'convert_currency' : ActorMethod<[number, string, string], [] | [number]>,
   'fetch_btc_transactions' : ActorMethod<[], Result_1>,
   'format_btc_amount' : ActorMethod<[number], string>,
+  'get_all_rates' : ActorMethod<[], Array<[string, string, number]>>,
   'get_balance' : ActorMethod<[string, [] | [string]], number>,
   'get_btc_balance' : ActorMethod<[], Result_2>,
   'get_budgets' : ActorMethod<[[] | [string]], Array<Budget>>,
@@ -83,7 +93,9 @@ export interface _SERVICE {
   'get_total_expense' : ActorMethod<[string, [] | [string]], number>,
   'get_total_income' : ActorMethod<[string, [] | [string]], number>,
   'get_transactions' : ActorMethod<[], Array<Transaction>>,
+  'get_transactions_by_currency' : ActorMethod<[string], Array<Transaction>>,
   'get_transactions_by_period' : ActorMethod<[string], Array<Transaction>>,
+  'get_transactions_by_source' : ActorMethod<[string], Array<Transaction>>,
   'get_unread_notification_count' : ActorMethod<[], bigint>,
   'get_user_balance_summary' : ActorMethod<[], [number, number, number]>,
   'get_user_summary' : ActorMethod<[], [bigint, bigint, bigint, bigint]>,
@@ -92,6 +104,7 @@ export interface _SERVICE {
   'satoshis_to_btc' : ActorMethod<[bigint], number>,
   'set_currency_rate' : ActorMethod<[string, string, number], Result>,
   'set_wallet_address' : ActorMethod<[string, string], Result>,
+  'sync_blockchain_transactions' : ActorMethod<[], Result>,
   'update_budget_spent' : ActorMethod<[], Result>,
   'validate_btc_address' : ActorMethod<[string], boolean>,
 }

@@ -17,6 +17,12 @@ pub struct Transaction {
     pub converted_amount: Option<f64>,
     pub converted_currency: Option<String>,
     pub conversion_rate: Option<f64>,
+    // NEW FIELDS for unified system
+    pub transaction_type: Option<String>,  // 'income', 'expense', 'investment', 'received', 'sent'
+    pub source: Option<String>,           // 'manual' or 'blockchain'
+    pub txid: Option<String>,            // Blockchain transaction ID
+    pub confirmations: Option<u32>,      // Number of confirmations
+    pub fee: Option<f64>,               // Transaction fee
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone)]

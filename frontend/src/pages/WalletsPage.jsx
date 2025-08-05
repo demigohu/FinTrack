@@ -16,6 +16,8 @@ export default function WalletsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [customAddress, setCustomAddress] = useState('');
+  const [showAddressInput, setShowAddressInput] = useState(false);
 
   // Load wallet data from backend
   const loadWalletData = async () => {
@@ -34,10 +36,60 @@ export default function WalletsPage() {
 
       // Load BTC balance
       const balanceResult = await bitcoinService.getBtcBalance();
-      if (balanceResult.success) {
+      console.log('Balance result:', balanceResult);
+      
+      if (balanceResult.success && balanceResult.data !== null && balanceResult.data !== undefined) {
+        // Extract satoshis from Ok variant
+        let satoshis;
+        if (balanceResult.data && typeof balanceResult.data === 'object' && 'Ok' in balanceResult.data) {
+          satoshis = Number(balanceResult.data.Ok);
+        } else {
+          satoshis = Number(balanceResult.data);
+        }
+        console.log('Satoshis:', satoshis);
+        
+        if (!isNaN(satoshis) && satoshis > 0) {
+          try {
+            const btcResult = await bitcoinService.satoshisToBtc(satoshis);
+            console.log('BTC result:', btcResult);
+            
+            if (btcResult.success) {
+              setWalletData(prev => ({
+                ...prev,
+                btcBalance: btcResult.data || 0
+              }));
+            } else {
+              // Fallback: convert manually if API fails
+              const btcBalance = satoshis / 100_000_000;
+              console.log('Fallback BTC balance:', btcBalance);
+              setWalletData(prev => ({
+                ...prev,
+                btcBalance: btcBalance
+              }));
+            }
+          } catch (error) {
+            console.error('Error in BTC conversion:', error);
+            // Fallback: convert manually
+            const btcBalance = satoshis / 100_000_000;
+            setWalletData(prev => ({
+              ...prev,
+              btcBalance: btcBalance
+            }));
+          }
+        } else {
+          // No balance or invalid data
+          console.log('Invalid satoshis:', satoshis);
+          setWalletData(prev => ({
+            ...prev,
+            btcBalance: 0
+          }));
+        }
+      } else {
+        // No balance data
+        console.log('No balance data:', balanceResult);
         setWalletData(prev => ({
           ...prev,
-          btcBalance: balanceResult.data || 0
+          btcBalance: 0
         }));
       }
 
@@ -63,17 +115,25 @@ export default function WalletsPage() {
 
   // Handler connect/disconnect
   const connectBtc = async () => {
+    if (!customAddress.trim()) {
+      alert('Please enter a valid BTC address');
+      return;
+    }
+    
     setIsConnecting(true);
     try {
-      // TODO: Implement wallet connection logic
-      const testAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
-      const result = await userService.setWalletAddress('BTC', testAddress);
+      const result = await userService.setWalletAddress('BTC', customAddress.trim());
       if (result.success) {
         setWalletData(prev => ({
           ...prev,
-          walletAddress: testAddress
+          walletAddress: customAddress.trim()
         }));
+        setCustomAddress('');
+        setShowAddressInput(false);
         await loadWalletData(); // Refresh data
+        alert('Wallet connected successfully!');
+      } else {
+        alert('Failed to connect wallet: ' + result.error);
       }
     } catch (err) {
       alert('Failed to connect wallet');
@@ -142,14 +202,46 @@ export default function WalletsPage() {
         <Card className="flex flex-col items-center">
           <div className="font-semibold mb-2">BTC (Bitcoin)</div>
           {!walletData.walletAddress ? (
-            <Button 
-              variant="secondary" 
-              onClick={connectBtc}
-              loading={isConnecting}
-              className="mb-2"
-            >
-              Connect Wallet
-            </Button>
+            <div className="text-center mb-2">
+              {!showAddressInput ? (
+                <Button 
+                  variant="secondary" 
+                  onClick={() => setShowAddressInput(true)}
+                  className="mb-2"
+                >
+                  Connect Wallet
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Input 
+                    placeholder="Enter BTC address"
+                    value={customAddress}
+                    onChange={(e) => setCustomAddress(e.target.value)}
+                    className="mb-2"
+                  />
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="primary" 
+                      onClick={connectBtc}
+                      loading={isConnecting}
+                      size="sm"
+                    >
+                      Connect
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => {
+                        setShowAddressInput(false);
+                        setCustomAddress('');
+                      }}
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-center mb-2">
               <Badge color="green" size="sm" className="mb-2">
@@ -169,7 +261,7 @@ export default function WalletsPage() {
             Address: <span className="font-mono text-xs">{walletData.walletAddress || '-'}</span>
           </div>
           <div className="text-gray-500 text-sm mb-2">
-            Balance: {walletData.btcBalance?.toFixed(8) || 0} BTC
+            Balance: {Number(walletData.btcBalance || 0).toFixed(8)} BTC
           </div>
           <Button 
             variant="secondary" 
@@ -239,15 +331,15 @@ export default function WalletsPage() {
                 <div className="flex-1">
                   <div className="font-medium text-sm">{tx.description || 'Transaction'}</div>
                   <div className="text-xs text-gray-500">
-                    {new Date(tx.timestamp / 1000000).toLocaleDateString()}
+                    {tx.date ? new Date(tx.date).toLocaleDateString() : new Date(Number(tx.timestamp) / 1000000).toLocaleDateString()}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-medium text-sm ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {tx.amount > 0 ? '+' : ''}{tx.amount?.toFixed(8) || 0} BTC
-                  </div>
-                  <Badge color={tx.amount > 0 ? 'green' : 'red'} size="sm">
-                    {tx.amount > 0 ? 'Received' : 'Sent'}
+                                  <div className={`font-medium text-sm ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {Number(tx.amount) > 0 ? '+' : ''}{Number(tx.amount || 0).toFixed(8)} BTC
+                </div>
+                  <Badge color={Number(tx.amount) > 0 ? 'green' : 'red'} size="sm">
+                    {Number(tx.amount) > 0 ? 'Received' : 'Sent'}
                   </Badge>
                 </div>
               </div>
@@ -264,25 +356,22 @@ export default function WalletsPage() {
       <Card>
         <div className="font-semibold mb-4">Wallet Management</div>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Add Custom BTC Address
-            </label>
-            <div className="flex space-x-2">
-              <Input 
-                placeholder="Enter BTC address"
-                className="flex-1"
-              />
-              <Button variant="primary" size="sm">
-                Add
-              </Button>
-            </div>
+          <div className="text-sm text-gray-500">
+            <p>• <strong>Bitcoin Regtest:</strong> Use addresses from your local Bitcoin regtest</p>
+            <p>• <strong>Real-time sync:</strong> Transactions are automatically synced from blockchain</p>
+            <p>• <strong>Balance tracking:</strong> Real-time balance updates from Bitcoin API</p>
+            <p>• <strong>Transaction history:</strong> View all incoming and outgoing transactions</p>
           </div>
           
-          <div className="text-sm text-gray-500">
-            <p>• Supported wallets: UniSat, Xverse, OKX</p>
-            <p>• Transactions are automatically synced</p>
-            <p>• Real-time balance updates</p>
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+            <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">How to Test:</h4>
+            <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+              <p>1. Start Bitcoin regtest: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">bitcoind -regtest -daemon</code></p>
+              <p>2. Generate address: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">bitcoin-cli -regtest getnewaddress</code></p>
+              <p>3. Send test BTC: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">bitcoin-cli -regtest sendtoaddress "address" 0.001</code></p>
+              <p>4. Connect wallet in FinTrack with the address</p>
+              <p>5. Click "Refresh" to sync blockchain data</p>
+            </div>
           </div>
         </div>
       </Card>

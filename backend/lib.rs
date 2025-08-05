@@ -32,6 +32,7 @@ fn add_transaction(
     description: String,
     is_income: bool,
     category: String,
+    date: String,
 ) -> Result<String, String> {
     let user = caller();
     if user == Principal::anonymous() {
@@ -49,11 +50,63 @@ fn add_transaction(
             description,
             is_income,
             timestamp: utils::get_current_time(),
-            date: utils::timestamp_to_date(utils::get_current_time()),
+            date,
             category,
             converted_amount: None,
             converted_currency: None,
             conversion_rate: None,
+            // NEW FIELDS with defaults for backward compatibility
+            transaction_type: Some(if is_income { "income".to_string() } else { "expense".to_string() }),
+            source: Some("manual".to_string()),
+            txid: None,
+            confirmations: None,
+            fee: None,
+        };
+        
+        let result = service::transaction::add_transaction(&mut user_data, tx);
+        if result.is_ok() {
+            users.insert(user, user_data);
+        }
+        result
+    })
+}
+
+#[ic_cdk::update]
+fn add_manual_transaction(
+    amount: f64,
+    currency: String,
+    description: String,
+    transaction_type: String,  // 'income', 'expense', 'investment'
+    category: String,
+    date: String,
+) -> Result<String, String> {
+    let user = caller();
+    if user == Principal::anonymous() {
+        return Err("Please log in with Internet Identity".to_string());
+    }
+
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+        let mut user_data = users.get(&user).unwrap_or_default();
+        
+        let tx = Transaction {
+            id: user_data.next_tx_id,
+            amount,
+            currency,
+            description,
+            is_income: transaction_type == "income",
+            timestamp: utils::get_current_time(),
+            date,
+            category,
+            converted_amount: None,
+            converted_currency: None,
+            conversion_rate: None,
+            // NEW FIELDS
+            transaction_type: Some(transaction_type),
+            source: Some("manual".to_string()),
+            txid: None,
+            confirmations: None,
+            fee: None,
         };
         
         let result = service::transaction::add_transaction(&mut user_data, tx);
@@ -305,6 +358,40 @@ fn convert_currency(amount: f64, from: String, to: String) -> Option<f64> {
     service::currency::convert(amount, &from, &to)
 }
 
+#[ic_cdk::query]
+fn get_all_rates() -> Vec<(String, String, f64)> {
+    service::currency::get_all_rates()
+        .into_iter()
+        .map(|((from, to), rate)| (from, to, rate))
+        .collect()
+}
+
+#[ic_cdk::query]
+fn get_transactions_by_source(source: String) -> Vec<Transaction> {
+    let user = caller();
+    USERS.with(|users| {
+        let users = users.borrow();
+        let user_data = users.get(&user).unwrap_or_default();
+        user_data.transactions.iter()
+            .filter(|tx| tx.source.as_ref().map_or(false, |s| s == &source))
+            .cloned()
+            .collect()
+    })
+}
+
+#[ic_cdk::query]
+fn get_transactions_by_currency(currency: String) -> Vec<Transaction> {
+    let user = caller();
+    USERS.with(|users| {
+        let users = users.borrow();
+        let user_data = users.get(&user).unwrap_or_default();
+        user_data.transactions.iter()
+            .filter(|tx| tx.currency == currency)
+            .cloned()
+            .collect()
+    })
+}
+
 // ===== USER METHODS =====
 
 #[ic_cdk::query]
@@ -415,6 +502,32 @@ fn satoshis_to_btc(satoshis: u64) -> f64 {
 #[ic_cdk::query]
 fn btc_to_satoshis(btc: f64) -> u64 {
     service::bitcoin::btc_to_satoshis(btc)
+}
+
+
+
+#[ic_cdk::update]
+async fn sync_blockchain_transactions() -> Result<String, String> {
+    let user = caller();
+    if user == Principal::anonymous() {
+        return Err("Please log in with Internet Identity".to_string());
+    }
+
+    let mut user_data = USERS.with(|users| {
+        let users = users.borrow();
+        users.get(&user).unwrap_or_default().clone()
+    });
+    
+    let result = service::bitcoin::sync_blockchain_transactions(&mut user_data).await;
+    
+    if result.is_ok() {
+        USERS.with(|users| {
+            let mut users = users.borrow_mut();
+            users.insert(user, user_data);
+        });
+    }
+    
+    result
 }
 
 ic_cdk::export_candid!();

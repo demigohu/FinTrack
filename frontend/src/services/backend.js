@@ -82,8 +82,8 @@ const logout = async () => {
 // ===== TRANSACTION SERVICES =====
 
 export const transactionService = {
-  // Add new transaction
-  async addTransaction(amount, currency, description, isIncome, category) {
+  // Add new transaction (backward compatible)
+  async addTransaction(amount, currency, description, isIncome, category, date) {
     try {
       if (!actor) {
         const isAuth = await initAuth();
@@ -96,19 +96,44 @@ export const transactionService = {
       const categoryValue = category;
       const isIncomeValue = isIncome;
       const currencyValue = currency;
+      const dateValue = date;
       
       console.log('Sending transaction data:', {
         amount: amountValue,
         description: descriptionValue,
         category: categoryValue,
         isIncome: isIncomeValue,
-        currency: currencyValue
+        currency: currencyValue,
+        date: dateValue
       });
       
-      const result = await actor.add_transaction(amountValue, currencyValue, descriptionValue, isIncomeValue, categoryValue);
+      const result = await actor.add_transaction(amountValue, currencyValue, descriptionValue, isIncomeValue, categoryValue, dateValue);
       return { success: true, data: result };
     } catch (error) {
       console.error('Error adding transaction:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Add manual transaction with new fields
+  async addManualTransaction(amount, currency, description, transactionType, category, date) {
+    try {
+      if (!actor) {
+        const isAuth = await initAuth();
+        if (!isAuth) throw new Error('Not authenticated. Please login first.');
+      }
+      
+      const result = await actor.add_manual_transaction(
+        Number(amount),
+        currency,
+        description,
+        transactionType,
+        category,
+        date
+      );
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Error adding manual transaction:', error);
       return { success: false, error: error.message };
     }
   },
@@ -144,6 +169,56 @@ export const transactionService = {
       return { success: false, error: error.message };
     }
   },
+
+  // Get transactions by source
+  async getTransactionsBySource(source) {
+    try {
+      if (!actor) {
+        const isAuth = await initAuth();
+        if (!isAuth) throw new Error('Not authenticated. Please login first.');
+      }
+      
+      const transactions = await actor.get_transactions_by_source(source);
+      return { success: true, data: transactions };
+    } catch (error) {
+      console.error('Error getting transactions by source:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Get transactions by currency
+  async getTransactionsByCurrency(currency) {
+    try {
+      if (!actor) {
+        const isAuth = await initAuth();
+        if (!isAuth) throw new Error('Not authenticated. Please login first.');
+      }
+      
+      const transactions = await actor.get_transactions_by_currency(currency);
+      return { success: true, data: transactions };
+    } catch (error) {
+      console.error('Error getting transactions by currency:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Sync blockchain transactions
+  async syncBlockchainTransactions() {
+    try {
+      if (!actor) {
+        const isAuth = await initAuth();
+        if (!isAuth) throw new Error('Not authenticated. Please login first.');
+      }
+      
+      const result = await actor.sync_blockchain_transactions();
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Error syncing blockchain transactions:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+
 
   // Get balance
   async getBalance(currency, yearMonth = null) {
@@ -382,6 +457,32 @@ export const currencyService = {
       return { success: true, data: converted };
     } catch (error) {
       console.error('Error converting currency:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Get all rates
+  async getAllRates() {
+    try {
+      if (!actor) {
+        const isAuth = await initAuth();
+        if (!isAuth) throw new Error('Not authenticated. Please login first.');
+      }
+      
+      const rates = await actor.get_all_rates();
+      
+      // Convert array format to object format for easier use
+      const ratesObject = {};
+      rates.forEach(([from, to, rate]) => {
+        if (!ratesObject[from]) {
+          ratesObject[from] = {};
+        }
+        ratesObject[from][to] = rate;
+      });
+      
+      return { success: true, data: ratesObject };
+    } catch (error) {
+      console.error('Error getting all rates:', error);
       return { success: false, error: error.message };
     }
   },

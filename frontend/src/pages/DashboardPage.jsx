@@ -267,12 +267,12 @@ export default function DashboardPage() {
                     {tx.description}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {tx.category} • {new Date(tx.timestamp / 1000000).toLocaleDateString()}
+                    {tx.category} • {tx.date ? new Date(tx.date).toLocaleDateString() : new Date(Number(tx.timestamp) / 1000000).toLocaleDateString()}
                   </p>
                 </div>
               </div>
               <div className={`text-sm font-medium ${tx.is_income ? 'text-green-600' : 'text-red-600'}`}>
-                {tx.is_income ? '+' : '-'}{tx.currency} {tx.amount.toLocaleString()}
+                {tx.is_income ? '+' : '-'}{tx.currency} {Number(tx.amount).toLocaleString()}
               </div>
             </div>
           ))}

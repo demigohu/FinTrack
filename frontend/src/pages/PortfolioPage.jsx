@@ -34,10 +34,50 @@ export default function PortfolioPage() {
 
       // Load BTC balance
       const btcResult = await bitcoinService.getBtcBalance();
-      if (btcResult.success) {
+      if (btcResult.success && btcResult.data !== null && btcResult.data !== undefined) {
+        // Extract satoshis from Ok variant
+        let satoshis;
+        if (btcResult.data && typeof btcResult.data === 'object' && 'Ok' in btcResult.data) {
+          satoshis = Number(btcResult.data.Ok);
+        } else {
+          satoshis = Number(btcResult.data);
+        }
+        
+        if (!isNaN(satoshis) && satoshis > 0) {
+          try {
+            const btcBalanceResult = await bitcoinService.satoshisToBtc(satoshis);
+            if (btcBalanceResult.success) {
+              setPortfolioData(prev => ({
+                ...prev,
+                balance_btc: btcBalanceResult.data || 0
+              }));
+            } else {
+              // Fallback: convert manually if API fails
+              const btcBalance = satoshis / 100_000_000;
+              setPortfolioData(prev => ({
+                ...prev,
+                balance_btc: btcBalance
+              }));
+            }
+          } catch (error) {
+            console.error('Error converting BTC balance for portfolio:', error);
+            // Fallback: convert manually
+            const btcBalance = satoshis / 100_000_000;
+            setPortfolioData(prev => ({
+              ...prev,
+              balance_btc: btcBalance
+            }));
+          }
+        } else {
+          setPortfolioData(prev => ({
+            ...prev,
+            balance_btc: 0
+          }));
+        }
+      } else {
         setPortfolioData(prev => ({
           ...prev,
-          balance_btc: btcResult.data
+          balance_btc: 0
         }));
       }
 
@@ -65,9 +105,9 @@ export default function PortfolioPage() {
 
   // Hitung alokasi aset
   const allocation = useMemo(() => {
-    const idr = portfolioData.balance_idr || 0;
-    const usd = (portfolioData.balance_usd || 0) * (portfolioData.usdToIdr || 1);
-    const btc = (portfolioData.balance_btc || 0) * (portfolioData.btcToIdr || 1);
+    const idr = Number(portfolioData.balance_idr || 0);
+    const usd = Number(portfolioData.balance_usd || 0) * Number(portfolioData.usdToIdr || 1);
+    const btc = Number(portfolioData.balance_btc || 0) * Number(portfolioData.btcToIdr || 1);
     const total = idr + usd + btc;
     return [
       { label: 'IDR', value: idr, percent: total ? (idr / total) * 100 : 0 },
@@ -139,9 +179,9 @@ export default function PortfolioPage() {
               Total Portfolio Value
             </h3>
             <p className="text-3xl font-bold text-blue-600">
-              IDR {(portfolioData.balance_idr + 
-                (portfolioData.balance_usd * portfolioData.usdToIdr) + 
-                (portfolioData.balance_btc * portfolioData.btcToIdr)).toLocaleString()}
+              IDR {(Number(portfolioData.balance_idr || 0) + 
+                (Number(portfolioData.balance_usd || 0) * Number(portfolioData.usdToIdr || 1)) + 
+                (Number(portfolioData.balance_btc || 0) * Number(portfolioData.btcToIdr || 1))).toLocaleString()}
             </p>
           </div>
         </Card>
@@ -152,7 +192,7 @@ export default function PortfolioPage() {
               IDR Balance
             </h3>
             <p className="text-3xl font-bold text-green-600">
-              IDR {portfolioData.balance_idr?.toLocaleString() || 0}
+              IDR {Number(portfolioData.balance_idr || 0).toLocaleString()}
             </p>
           </div>
         </Card>
@@ -163,7 +203,7 @@ export default function PortfolioPage() {
               BTC Balance
             </h3>
             <p className="text-3xl font-bold text-yellow-600">
-              {portfolioData.balance_btc?.toFixed(8) || 0} BTC
+              {Number(portfolioData.balance_btc || 0).toFixed(8)} BTC
             </p>
           </div>
         </Card>
@@ -183,7 +223,7 @@ export default function PortfolioPage() {
             <div key={idx}>
               <div className="flex justify-between text-sm mb-1">
                 <span>{asset.label}</span>
-                <span>{asset.percent.toFixed(1)}%</span>
+                <span>{Number(asset.percent || 0).toFixed(1)}%</span>
               </div>
               <Progress 
                 value={asset.percent} 

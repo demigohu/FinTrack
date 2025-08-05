@@ -20,6 +20,9 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
   const [filterType, setFilterType] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterSource, setFilterSource] = useState('ALL');
+  const [filterCurrency, setFilterCurrency] = useState('ALL');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' or 'blockchain'
   const [isOpenAddTransaction, setIsOpenAddTransaction] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -54,10 +57,44 @@ export default function TransactionsPage() {
     loadTransactions(); // Refresh data after adding transaction
   };
 
-  const filteredTx = transactions.filter(tx =>
-    (filterType === 'ALL' || (filterType === 'Income' && tx.is_income) || (filterType === 'Expense' && !tx.is_income)) &&
-    (filterCategory === '' || tx.category === filterCategory)
-  );
+  const filteredTx = transactions.filter(tx => {
+    const typeMatch = filterType === 'ALL' || 
+      (filterType === 'Income' && tx.is_income) || 
+      (filterType === 'Expense' && !tx.is_income);
+    const categoryMatch = filterCategory === '' || tx.category === filterCategory;
+    
+    // Handle source filtering with fallback
+    let sourceMatch = true;
+    if (filterSource !== 'ALL') {
+      let txSource = tx.source || 'manual'; // Default to manual if no source
+      
+      // Handle array format for source field
+      if (Array.isArray(txSource)) {
+        txSource = txSource[0] || 'manual';
+      }
+      
+      console.log('Filtering by source:', filterSource, 'Transaction source:', txSource, 'Match:', txSource === filterSource);
+      sourceMatch = txSource === filterSource;
+    }
+    
+    // Filter by active tab
+    let tabMatch = true;
+    if (activeTab === 'blockchain') {
+      let txSource = tx.source || 'manual';
+      
+      // Handle array format for source field
+      if (Array.isArray(txSource)) {
+        txSource = txSource[0] || 'manual';
+      }
+      
+      tabMatch = txSource === 'blockchain';
+      console.log('Blockchain tab filtering:', 'Transaction source:', txSource, 'Match:', tabMatch);
+    }
+    
+    const currencyMatch = filterCurrency === 'ALL' || tx.currency === filterCurrency;
+    
+    return typeMatch && categoryMatch && sourceMatch && tabMatch && currencyMatch;
+  });
 
   const totalItems = filteredTx.length;
   const totalPages = Math.ceil(totalItems / pageSize);
@@ -80,6 +117,27 @@ export default function TransactionsPage() {
   const handleDelete = (tx) => {
     console.log('Delete transaction:', tx);
     // Implement delete logic
+  };
+
+  const handleSyncBlockchain = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const result = await transactionService.syncBlockchainTransactions();
+      if (result.success) {
+        // Reload transactions after sync
+        await loadTransactions();
+        alert('Blockchain transactions synced successfully!');
+      } else {
+        setError(result.error);
+      }
+    } catch (error) {
+      setError('Failed to sync blockchain transactions');
+      console.error('Sync error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -121,12 +179,49 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex space-x-4 mb-4">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 rounded-md ${
+            activeTab === 'all' 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          📊 All Transactions
+        </button>
+        <button
+          onClick={() => setActiveTab('blockchain')}
+          className={`px-4 py-2 rounded-md ${
+            activeTab === 'blockchain' 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          🔗 Blockchain Transactions
+        </button>
+      </div>
+
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 mb-4">
         <Select value={filterType} onChange={e => setFilterType(e.target.value)}>
           <option value="ALL">All Types</option>
           <option value="Income">Income</option>
           <option value="Expense">Expense</option>
+        </Select>
+        <Select value={filterSource} onChange={e => setFilterSource(e.target.value)}>
+          <option value="ALL">All Sources</option>
+          <option value="manual">Manual Input</option>
+          <option value="blockchain">Blockchain</option>
+        </Select>
+        <Select value={filterCurrency} onChange={e => setFilterCurrency(e.target.value)}>
+          <option value="ALL">All Currencies</option>
+          <option value="IDR">IDR</option>
+          <option value="USD">USD</option>
+          <option value="BTC">BTC</option>
+          <option value="ETH">ETH</option>
+          <option value="SOL">SOL</option>
         </Select>
         <Input 
           placeholder="Category" 
@@ -136,15 +231,23 @@ export default function TransactionsPage() {
         <Button variant="secondary" size="sm">
           Export CSV
         </Button>
+        <Button 
+          variant="primary" 
+          size="sm"
+          onClick={handleSyncBlockchain}
+          disabled={loading}
+        >
+          🔄 Sync Blockchain
+        </Button>
       </div>
       
       {/* Table transaksi */}
       <Card>
-        <Table headers={tableHeaders}>
+        <Table headers={activeTab === 'all' ? tableHeaders : [...tableHeaders, 'Source', 'Details']}>
           {paginatedTx.map((tx, index) => (
             <TableRow key={index}>
               <TableCell>
-                {new Date(tx.timestamp / 1000000).toLocaleDateString()}
+                {tx.date ? new Date(tx.date).toLocaleDateString() : new Date(Number(tx.timestamp) / 1000000).toLocaleDateString()}
               </TableCell>
               <TableCell>{tx.description}</TableCell>
               <TableCell>
@@ -159,22 +262,53 @@ export default function TransactionsPage() {
                 </Badge>
               </TableCell>
               <TableCell className="font-medium">
-                {tx.currency} {tx.amount.toLocaleString()}
+                {tx.currency} {Number(tx.amount).toLocaleString()}
               </TableCell>
               <TableCell>{tx.currency}</TableCell>
-              <TableCell>
-                <Dropdown
-                  trigger={
-                    <Button variant="ghost" size="sm">
-                      ⋯
-                    </Button>
-                  }
-                  items={[
-                    { label: 'Edit', onClick: () => handleEdit(tx) },
-                    { label: 'Delete', onClick: () => handleDelete(tx) }
-                  ]}
-                />
-              </TableCell>
+              {activeTab === 'all' ? (
+                <TableCell>
+                  <Dropdown
+                    trigger={
+                      <Button variant="ghost" size="sm">
+                        ⋯
+                      </Button>
+                    }
+                    items={[
+                      { label: 'Edit', onClick: () => handleEdit(tx) },
+                      { label: 'Delete', onClick: () => handleDelete(tx) }
+                    ]}
+                  />
+                </TableCell>
+              ) : (
+                <>
+                  <TableCell>
+                    {(() => {
+                      let txSource = tx.source || 'manual';
+                      if (Array.isArray(txSource)) {
+                        txSource = txSource[0] || 'manual';
+                      }
+                      return (
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          txSource === 'manual' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {txSource === 'manual' ? 'Manual' : 'Blockchain'}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {tx.txid && (
+                      <a 
+                        href={`https://blockchain.info/tx/${String(tx.txid)}`} 
+                        target="_blank"
+                        className="text-blue-600 hover:text-blue-800 text-xs"
+                      >
+                        {String(tx.txid).substring(0, 8)}...
+                      </a>
+                    )}
+                  </TableCell>
+                </>
+              )}
             </TableRow>
           ))}
         </Table>
