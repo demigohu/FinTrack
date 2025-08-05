@@ -1,154 +1,78 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AddTransaction } from './AddTransaction.jsx';
-import { utilsNx } from './utils.jsx';
-import { ReportFinancial } from "./ReportFinancial";
-import { AuthContext } from './AuthContext.jsx';
-import { AiAdvice } from './AiAdvice.jsx'
+import React, { useContext } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthContext } from './contexts/AuthContext.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import BottomNav from './components/BottomNav.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import TransactionsPage from './pages/TransactionsPage.jsx';
+import PortfolioPage from './pages/PortfolioPage.jsx';
+import WalletsPage from './pages/WalletsPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import AIAdvisorPage from './pages/AIAdvisorPage.jsx';
+import BudgetPage from './pages/BudgetPage.jsx';
+import GoalsPage from './pages/GoalsPage.jsx';
+import NotificationsPage from './pages/NotificationsPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import HelpPage from './pages/HelpPage.jsx';
 
-const App = () => {
-  const { updateProfile, getProfile, getBalance, getIncome, getExpense } = utilsNx();
-  const { mainBalances, mainIncome, mainExpense, setMainBalances, setMainIncome, setMainExpense, monthMain, setMonthMain, currency, setCurrency, convertCurrency } = useContext(AuthContext);
-  const { walletAddress, setWalletAddress, btcBalance, fetchBtcBalance, btcTransactions, fetchBtcTransactions } = useContext(AuthContext);
-  const [inputAddress, setInputAddress] = useState("");
-
-  const [isOpenRecordTx, setIsOpenRecordTx] = useState(false);
-  const [isOpenAiAdvice, setIsOpenAiAdvice] = useState(false);
-
-  const today = new Date();
-  const defaultMonth = `${today.getFullYear()}-${String(
-    today.getMonth() + 1
-  ).padStart(2, "0")}`;
-  // const [selectedMonthMain, setSelectedMonthMain] = useState(defaultMonth);
-
-  const changeMonth = async (month) => {
-    console.log('month change 1: ', month);
-    setMonthMain(month);
-    console.log('month change: 2', monthMain);
-    // Gunakan fungsi dari AuthContext yang sudah diperbaiki
-    const { handleGetMainBalances, handleGetMainIncome, handleGetMainExpense } = useContext(AuthContext);
-    await handleGetMainBalances(month);
-    await handleGetMainIncome(month);
-    await handleGetMainExpense(month);
-  }
+function App() {
+  const { isLoggedIn } = useContext(AuthContext);
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
 
   return (
-    <div>
-      {/* Hapus section BTC Wallet di sini, hanya render dashboard utama */}
-      <div className="bg-[url('/bg-main.svg')] bg-cover text-white">
-        <div className="max-w-screen-xl mx-auto p-8 sm:p-14 bg-cover flex flex-col items-center justify-center">
-
-          <span className="mb-1 text-base">Expense</span>
-          <label className="mb-1 text-base">
-            Month :
-            <input
-              type="month"
-              className="bg-transparent ml-4 w-[160px] outline-none dark:[color-scheme:dark]"
-              value={monthMain}
-              onChange={(e) => changeMonth(e.target.value)}
-            />
-          </label>
-
-          <div className="flex mb-4 items-end">
-            <h1 className="text-3xl sm:text-5xl">{convertCurrency(mainExpense)}</h1>
-            <select
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                console.log('Currency changed to:', e.target.value);
-              }}
-              id="currency"
-              className="text-sm rounded-lg h-[30px] bg-white text-black cursor-pointer outline-none px-2 ml-2"
-            >
-              <option value="idr">IDR</option>
-              <option value="usd">USD</option>
-              <option value="btc">BTC</option>
-            </select>
-          </div>
-
-          <div className="sm:grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-black/20 rounded-xl p-4 flex items-center mb-4 sm:mb-0">
-              <div className="w-10 h-10 bg-[#0eb200] rounded-full flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6 origin-center rotate-45"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 12H5m14 0-4 4m4-4-4-4"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm">Income</p>
-                <p className="text-xl font-bold">{convertCurrency(mainIncome)}</p>
-              </div>
-            </div>
-            <div className="bg-black/20 rounded-xl p-4 flex items-center">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6 text-black"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M8 17.345a4.76 4.76 0 0 0 2.558 1.618c2.274.589 4.512-.446 4.999-2.31.487-1.866-1.273-3.9-3.546-4.49-2.273-.59-4.034-2.623-3.547-4.488.486-1.865 2.724-2.899 4.998-2.31.982.236 1.87.793 2.538 1.592m-3.879 12.171V21m0-18v2.2"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm">Remaining Balance</p>
-                <p className="text-xl font-bold">{convertCurrency(mainBalances)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="sm:grid grid-cols-2 gap-4">
-            <div className="mb-4 sm:mb-0">
-              <button
-                onClick={() => setIsOpenRecordTx(true)}
-                type="button"
-                className="text-white bg-[#FF0000] hover:bg-[#bf0101] focus:outline-none font-medium rounded-lg text-sm px-4 py-2 text-center"
-              >
-                Record Transaction
-              </button>
-            </div>
-            <div>
-              <button
-                onClick={() => setIsOpenAiAdvice(true)}
-                type="button"
-                className="text-white bg-[#AD00FF] hover:bg-[#8109ba] focus:outline-none font-medium rounded-lg text-sm px-4 py-2 text-center w-full sm:w-auto"
-              >
-                AI Advice
-              </button>
-            </div>
-          </div>
+    <ErrorBoundary>
+      <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
+        {/* Sidebar untuk desktop */}
+        {!isLoginPage && <Sidebar />}
+        <div className="flex-1 flex flex-col min-h-screen">
+          <main className="flex-1 p-2 sm:p-6">
+            <Routes>
+              <Route path="/login" element={
+                isLoggedIn ? <Navigate to="/dashboard" /> : <LoginPage />
+              } />
+              <Route path="/dashboard" element={
+                isLoggedIn ? <DashboardPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/transactions" element={
+                isLoggedIn ? <TransactionsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/portfolio" element={
+                isLoggedIn ? <PortfolioPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/wallets" element={
+                isLoggedIn ? <WalletsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/analytics" element={
+                isLoggedIn ? <AnalyticsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/ai-advisor" element={
+                isLoggedIn ? <AIAdvisorPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/budget" element={
+                isLoggedIn ? <BudgetPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/goals" element={
+                isLoggedIn ? <GoalsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/notifications" element={
+                isLoggedIn ? <NotificationsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/settings" element={
+                isLoggedIn ? <SettingsPage /> : <Navigate to="/login" />
+              } />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} />} />
+            </Routes>
+          </main>
+          {/* Bottom navigation untuk mobile */}
+          {!isLoginPage && <BottomNav />}
         </div>
       </div>
-      <div className="max-w-screen-xl mx-auto p-4 text-black">
-        <ReportFinancial />
-      </div>
-
-      {/* Modal */}
-      <AddTransaction isOpen={isOpenRecordTx} onClose={() => setIsOpenRecordTx(false)}/>
-      <AiAdvice isOpen={isOpenAiAdvice} onClose={() => setIsOpenAiAdvice(false)}/>
-    </div>
+    </ErrorBoundary>
   );
-};
+}
 
 export default App;

@@ -27,7 +27,6 @@ dependencies = [
  "candid",
  "hex",
  "ic-cdk",
- "ic-management-canister-types",
  "ic-stable-structures",
  "serde",
  "serde_json",

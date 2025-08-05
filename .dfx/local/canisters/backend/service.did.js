@@ -1,112 +1,148 @@
 export const idlFactory = ({ IDL }) => {
   const Result = IDL.Variant({ 'Ok' : IDL.Text, 'Err' : IDL.Text });
-  const Result_1 = IDL.Variant({ 'Ok' : IDL.Float64, 'Err' : IDL.Text });
-  const Outpoint = IDL.Record({
+  const OutPoint = IDL.Record({
     'txid' : IDL.Vec(IDL.Nat8),
     'vout' : IDL.Nat32,
   });
-  const Utxo = IDL.Record({
-    'height' : IDL.Nat32,
-    'value' : IDL.Nat64,
-    'outpoint' : Outpoint,
+  const Utxo = IDL.Record({ 'value' : IDL.Nat64, 'outpoint' : OutPoint });
+  const GetUtxosResponse = IDL.Record({ 'utxos' : IDL.Vec(Utxo) });
+  const Result_1 = IDL.Variant({ 'Ok' : GetUtxosResponse, 'Err' : IDL.Text });
+  const Result_2 = IDL.Variant({ 'Ok' : IDL.Nat64, 'Err' : IDL.Text });
+  const Budget = IDL.Record({
+    'id' : IDL.Nat64,
+    'updated_at' : IDL.Nat64,
+    'period' : IDL.Text,
+    'created_at' : IDL.Nat64,
+    'spent' : IDL.Float64,
+    'currency' : IDL.Text,
+    'category' : IDL.Text,
+    'budget' : IDL.Float64,
   });
-  const GetUtxosResponse = IDL.Record({
-    'next_page' : IDL.Opt(IDL.Vec(IDL.Nat8)),
-    'tip_height' : IDL.Nat32,
-    'tip_block_hash' : IDL.Vec(IDL.Nat8),
-    'utxos' : IDL.Vec(Utxo),
+  const Goal = IDL.Record({
+    'id' : IDL.Nat64,
+    'status' : IDL.Text,
+    'title' : IDL.Text,
+    'updated_at' : IDL.Nat64,
+    'description' : IDL.Text,
+    'deadline' : IDL.Text,
+    'created_at' : IDL.Nat64,
+    'current_amount' : IDL.Float64,
+    'currency' : IDL.Text,
+    'target_amount' : IDL.Float64,
+    'category' : IDL.Text,
+    'priority' : IDL.Text,
   });
-  const Result_2 = IDL.Variant({ 'Ok' : GetUtxosResponse, 'Err' : IDL.Text });
-  const Result_3 = IDL.Variant({
-    'Ok' : IDL.Tuple(IDL.Float64, IDL.Float64),
-    'Err' : IDL.Text,
+  const Notification = IDL.Record({
+    'id' : IDL.Nat64,
+    'is_read' : IDL.Bool,
+    'title' : IDL.Text,
+    'type_' : IDL.Text,
+    'message' : IDL.Text,
+    'timestamp' : IDL.Nat64,
+    'category' : IDL.Text,
   });
-  const Result_4 = IDL.Variant({ 'Ok' : IDL.Nat64, 'Err' : IDL.Text });
   const Transaction = IDL.Record({
     'id' : IDL.Nat64,
+    'conversion_rate' : IDL.Opt(IDL.Float64),
     'is_income' : IDL.Bool,
     'date' : IDL.Text,
     'description' : IDL.Text,
     'currency' : IDL.Text,
     'timestamp' : IDL.Nat64,
+    'converted_currency' : IDL.Opt(IDL.Text),
     'category' : IDL.Text,
+    'converted_amount' : IDL.Opt(IDL.Float64),
     'amount' : IDL.Float64,
   });
-  const Result_5 = IDL.Variant({
-    'Ok' : IDL.Vec(Transaction),
-    'Err' : IDL.Text,
-  });
-  const HttpHeader = IDL.Record({ 'value' : IDL.Text, 'name' : IDL.Text });
-  const HttpResponse = IDL.Record({
-    'status' : IDL.Nat,
-    'body' : IDL.Vec(IDL.Nat8),
-    'headers' : IDL.Vec(HttpHeader),
-  });
-  const TransformArgs = IDL.Record({
-    'context' : IDL.Vec(IDL.Nat8),
-    'response' : HttpResponse,
-  });
   return IDL.Service({
-    'add_expense' : IDL.Func(
-        [
-          IDL.Vec(IDL.Float64),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Nat64),
-          IDL.Vec(IDL.Text),
-        ],
+    'add_budget' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
         [Result],
         [],
       ),
-    'add_income' : IDL.Func(
+    'add_goal' : IDL.Func(
         [
-          IDL.Vec(IDL.Float64),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Nat64),
-          IDL.Vec(IDL.Text),
+          IDL.Text,
+          IDL.Text,
+          IDL.Float64,
+          IDL.Float64,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
         ],
         [Result],
         [],
       ),
     'add_transaction' : IDL.Func(
-        [
-          IDL.Vec(IDL.Float64),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Text),
-          IDL.Vec(IDL.Bool),
-          IDL.Vec(IDL.Nat64),
-          IDL.Vec(IDL.Text),
-        ],
+        [IDL.Float64, IDL.Text, IDL.Text, IDL.Bool, IDL.Text],
         [Result],
         [],
       ),
-    'convert_amount' : IDL.Func(
+    'btc_to_satoshis' : IDL.Func([IDL.Float64], [IDL.Nat64], ['query']),
+    'convert_currency' : IDL.Func(
         [IDL.Float64, IDL.Text, IDL.Text],
-        [Result_1],
+        [IDL.Opt(IDL.Float64)],
         ['query'],
       ),
-    'fetch_btc_transactions' : IDL.Func([], [Result_2], []),
-    'get_ai_advice' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Result], []),
-    'get_analysis' : IDL.Func([], [Result_3], ['query']),
-    'get_balance' : IDL.Func([IDL.Text, IDL.Text], [Result_1], ['query']),
-    'get_btc_balance' : IDL.Func([], [Result_4], []),
-    'get_btc_rates' : IDL.Func([], [Result_3], []),
-    'get_expense' : IDL.Func([IDL.Text, IDL.Text], [Result_1], ['query']),
-    'get_expense_report' : IDL.Func([IDL.Text], [Result_5], ['query']),
-    'get_filtered_transactions' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text],
-        [Result_5],
+    'fetch_btc_transactions' : IDL.Func([], [Result_1], []),
+    'format_btc_amount' : IDL.Func([IDL.Float64], [IDL.Text], ['query']),
+    'get_balance' : IDL.Func(
+        [IDL.Text, IDL.Opt(IDL.Text)],
+        [IDL.Float64],
         ['query'],
       ),
-    'get_income' : IDL.Func([IDL.Text, IDL.Text], [Result_1], ['query']),
-    'get_income_report' : IDL.Func([IDL.Text], [Result_5], ['query']),
-    'get_manual_balance' : IDL.Func([IDL.Text], [Result_1], ['query']),
-    'get_report' : IDL.Func([], [Result_5], ['query']),
-    'get_report_by_month' : IDL.Func([IDL.Text], [Result_5], ['query']),
-    'get_usd_to_idr_rate' : IDL.Func([], [Result_1], []),
+    'get_btc_balance' : IDL.Func([], [Result_2], []),
+    'get_budgets' : IDL.Func([IDL.Opt(IDL.Text)], [IDL.Vec(Budget)], ['query']),
+    'get_currency_rate' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(IDL.Float64)],
+        ['query'],
+      ),
+    'get_goals' : IDL.Func([], [IDL.Vec(Goal)], ['query']),
+    'get_notifications' : IDL.Func(
+        [IDL.Opt(IDL.Text), IDL.Bool],
+        [IDL.Vec(Notification)],
+        ['query'],
+      ),
+    'get_total_expense' : IDL.Func(
+        [IDL.Text, IDL.Opt(IDL.Text)],
+        [IDL.Float64],
+        ['query'],
+      ),
+    'get_total_income' : IDL.Func(
+        [IDL.Text, IDL.Opt(IDL.Text)],
+        [IDL.Float64],
+        ['query'],
+      ),
+    'get_transactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+    'get_transactions_by_period' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(Transaction)],
+        ['query'],
+      ),
+    'get_unread_notification_count' : IDL.Func([], [IDL.Nat64], ['query']),
+    'get_user_balance_summary' : IDL.Func(
+        [],
+        [IDL.Float64, IDL.Float64, IDL.Float64],
+        ['query'],
+      ),
+    'get_user_summary' : IDL.Func(
+        [],
+        [IDL.Nat64, IDL.Nat64, IDL.Nat64, IDL.Nat64],
+        ['query'],
+      ),
+    'get_wallet_address' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+    'mark_notification_read' : IDL.Func([IDL.Nat64], [Result], []),
+    'satoshis_to_btc' : IDL.Func([IDL.Nat64], [IDL.Float64], ['query']),
+    'set_currency_rate' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Float64],
+        [Result],
+        [],
+      ),
     'set_wallet_address' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
-    'transform' : IDL.Func([TransformArgs], [HttpResponse], ['query']),
+    'update_budget_spent' : IDL.Func([], [Result], []),
+    'validate_btc_address' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   });
 };
 export const init = ({ IDL }) => { return []; };

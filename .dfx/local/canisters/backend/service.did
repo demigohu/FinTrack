@@ -1,65 +1,81 @@
-type GetUtxosResponse = record {
-  next_page : opt blob;
-  tip_height : nat32;
-  tip_block_hash : blob;
-  utxos : vec Utxo;
+type Budget = record {
+  id : nat64;
+  updated_at : nat64;
+  period : text;
+  created_at : nat64;
+  spent : float64;
+  currency : text;
+  category : text;
+  budget : float64;
 };
-type HttpHeader = record { value : text; name : text };
-type HttpResponse = record {
-  status : nat;
-  body : blob;
-  headers : vec HttpHeader;
+type GetUtxosResponse = record { utxos : vec Utxo };
+type Goal = record {
+  id : nat64;
+  status : text;
+  title : text;
+  updated_at : nat64;
+  description : text;
+  deadline : text;
+  created_at : nat64;
+  current_amount : float64;
+  currency : text;
+  target_amount : float64;
+  category : text;
+  priority : text;
 };
-type Outpoint = record { txid : blob; vout : nat32 };
+type Notification = record {
+  id : nat64;
+  is_read : bool;
+  title : text;
+  type_ : text;
+  message : text;
+  timestamp : nat64;
+  category : text;
+};
+type OutPoint = record { txid : blob; vout : nat32 };
 type Result = variant { Ok : text; Err : text };
-type Result_1 = variant { Ok : float64; Err : text };
-type Result_2 = variant { Ok : GetUtxosResponse; Err : text };
-type Result_3 = variant { Ok : record { float64; float64 }; Err : text };
-type Result_4 = variant { Ok : nat64; Err : text };
-type Result_5 = variant { Ok : vec Transaction; Err : text };
+type Result_1 = variant { Ok : GetUtxosResponse; Err : text };
+type Result_2 = variant { Ok : nat64; Err : text };
 type Transaction = record {
   id : nat64;
+  conversion_rate : opt float64;
   is_income : bool;
   date : text;
   description : text;
   currency : text;
   timestamp : nat64;
+  converted_currency : opt text;
   category : text;
+  converted_amount : opt float64;
   amount : float64;
 };
-type TransformArgs = record { context : blob; response : HttpResponse };
-type Utxo = record { height : nat32; value : nat64; outpoint : Outpoint };
+type Utxo = record { value : nat64; outpoint : OutPoint };
 service : {
-  add_expense : (vec float64, vec text, vec text, vec nat64, vec text) -> (
-      Result,
-    );
-  add_income : (vec float64, vec text, vec text, vec nat64, vec text) -> (
-      Result,
-    );
-  add_transaction : (
-      vec float64,
-      vec text,
-      vec text,
-      vec bool,
-      vec nat64,
-      vec text,
-    ) -> (Result);
-  convert_amount : (float64, text, text) -> (Result_1) query;
-  fetch_btc_transactions : () -> (Result_2);
-  get_ai_advice : (text, text, text) -> (Result);
-  get_analysis : () -> (Result_3) query;
-  get_balance : (text, text) -> (Result_1) query;
-  get_btc_balance : () -> (Result_4);
-  get_btc_rates : () -> (Result_3);
-  get_expense : (text, text) -> (Result_1) query;
-  get_expense_report : (text) -> (Result_5) query;
-  get_filtered_transactions : (text, text, text) -> (Result_5) query;
-  get_income : (text, text) -> (Result_1) query;
-  get_income_report : (text) -> (Result_5) query;
-  get_manual_balance : (text) -> (Result_1) query;
-  get_report : () -> (Result_5) query;
-  get_report_by_month : (text) -> (Result_5) query;
-  get_usd_to_idr_rate : () -> (Result_1);
+  add_budget : (text, float64, text, text) -> (Result);
+  add_goal : (text, text, float64, float64, text, text, text, text) -> (Result);
+  add_transaction : (float64, text, text, bool, text) -> (Result);
+  btc_to_satoshis : (float64) -> (nat64) query;
+  convert_currency : (float64, text, text) -> (opt float64) query;
+  fetch_btc_transactions : () -> (Result_1);
+  format_btc_amount : (float64) -> (text) query;
+  get_balance : (text, opt text) -> (float64) query;
+  get_btc_balance : () -> (Result_2);
+  get_budgets : (opt text) -> (vec Budget) query;
+  get_currency_rate : (text, text) -> (opt float64) query;
+  get_goals : () -> (vec Goal) query;
+  get_notifications : (opt text, bool) -> (vec Notification) query;
+  get_total_expense : (text, opt text) -> (float64) query;
+  get_total_income : (text, opt text) -> (float64) query;
+  get_transactions : () -> (vec Transaction) query;
+  get_transactions_by_period : (text) -> (vec Transaction) query;
+  get_unread_notification_count : () -> (nat64) query;
+  get_user_balance_summary : () -> (float64, float64, float64) query;
+  get_user_summary : () -> (nat64, nat64, nat64, nat64) query;
+  get_wallet_address : (text) -> (opt text) query;
+  mark_notification_read : (nat64) -> (Result);
+  satoshis_to_btc : (nat64) -> (float64) query;
+  set_currency_rate : (text, text, float64) -> (Result);
   set_wallet_address : (text, text) -> (Result);
-  transform : (TransformArgs) -> (HttpResponse) query;
+  update_budget_spent : () -> (Result);
+  validate_btc_address : (text) -> (bool) query;
 }

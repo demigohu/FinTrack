@@ -57,7 +57,6 @@ type HttpRequest = record {
 type HttpResponse = record {
   body : blob;
   headers : vec HeaderField;
-  upgrade : opt bool;
   streaming_strategy : opt StreamingStrategy;
   status_code : nat16;
 };
@@ -74,7 +73,6 @@ type SetAssetContentArguments = record {
   sha256 : opt blob;
   chunk_ids : vec ChunkId;
   content_encoding : text;
-  last_chunk : opt blob;
 };
 type SetAssetPropertiesArguments = record {
   key : Key;

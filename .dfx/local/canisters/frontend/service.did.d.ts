@@ -62,7 +62,6 @@ export interface HttpRequest {
 export interface HttpResponse {
   'body' : Uint8Array | number[],
   'headers' : Array<HeaderField>,
-  'upgrade' : [] | [boolean],
   'streaming_strategy' : [] | [StreamingStrategy],
   'status_code' : number,
 }
@@ -81,7 +80,6 @@ export interface SetAssetContentArguments {
   'sha256' : [] | [Uint8Array | number[]],
   'chunk_ids' : Array<ChunkId>,
   'content_encoding' : string,
-  'last_chunk' : [] | [Uint8Array | number[]],
 }
 export interface SetAssetPropertiesArguments {
   'key' : Key,
