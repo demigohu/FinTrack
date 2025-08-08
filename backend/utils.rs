@@ -29,13 +29,25 @@ pub fn timestamp_to_date(timestamp_ns: u64) -> String {
 }
 
 /// Validasi kode mata uang yang didukung
+/// USD: untuk manual transactions
+/// BTC, ETH, SOL: untuk crypto transactions
 pub fn validate_currency(currency: &str) -> bool {
-    matches!(currency, "IDR" | "USD" | "BTC" | "EUR" | "SGD")
+    matches!(currency, "USD" | "BTC" | "ETH" | "SOL")
 }
 
 /// Validasi prioritas goal
 pub fn validate_priority(priority: &str) -> bool {
     matches!(priority, "low" | "medium" | "high")
+}
+
+/// Validasi transaction type untuk manual transactions
+pub fn validate_transaction_type(tx_type: &str) -> bool {
+    matches!(tx_type, "income" | "expense")
+}
+
+/// Validasi display currency (untuk frontend toggle)
+pub fn validate_display_currency(currency: &str) -> bool {
+    matches!(currency, "USD" | "IDR")
 }
 
 /// Mendapatkan string "YYYY-MM" dari timestamp nanodetik (manual, tanpa chrono)

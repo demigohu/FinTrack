@@ -1,10 +1,12 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { transactionService, userService } from '../services/backend';
+import { transactionService } from '../services/backend';
+import Button from '../components/Button.jsx';
+import Card from '../components/Card.jsx';
 import ChartComponent from '../components/ChartComponent.jsx';
+import Badge from '../components/Badge.jsx';
 import CurrencySelector from '../components/CurrencySelector.jsx';
 import Select from '../components/Select.jsx';
-import Card from '../components/Card.jsx';
 import Tabs from '../components/Tabs.jsx';
 import Breadcrumb from '../components/Breadcrumb.jsx';
 
@@ -25,20 +27,22 @@ export default function AnalyticsPage() {
     try {
       // Load transactions
       const txResult = await transactionService.getTransactions();
-      if (txResult.success) {
-        setTransactions(txResult.data);
+      if (txResult) {
+        setTransactions(txResult);
       }
 
-      // Load income and expense reports
-      const incomeResult = await transactionService.getTotalIncome();
-      if (incomeResult.success) {
-        setReportIncome(incomeResult.data);
-      }
+      // TODO: Load income and expense reports from new API
+      // For now, calculate from transactions
+      const income = transactions
+        .filter(tx => tx.transaction_type === 'income')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+      
+      const expense = transactions
+        .filter(tx => tx.transaction_type === 'expense')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-      const expenseResult = await transactionService.getTotalExpense();
-      if (expenseResult.success) {
-        setReportExpense(expenseResult.data);
-      }
+      setReportIncome(income);
+      setReportExpense(expense);
     } catch (err) {
       setError('Failed to load analytics data');
       console.error('Error loading analytics data:', err);
@@ -54,8 +58,8 @@ export default function AnalyticsPage() {
   // Breakdown kategori
   const categoryBreakdown = useMemo(() => {
     return transactions.reduce((acc, tx) => {
-      if (!tx.is_income) { // Only count expenses for category breakdown
-        acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
+      if (tx.transaction_type === 'expense') { // Only count expenses for category breakdown
+        acc[tx.category] = (acc[tx.category] || 0) + Number(tx.amount);
       }
       return acc;
     }, {});

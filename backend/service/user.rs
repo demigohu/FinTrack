@@ -16,7 +16,7 @@ pub fn get_user_summary(user_data: &UserData) -> (u64, u64, u64, u64) {
 }
 
 pub fn get_user_balance_summary(user_data: &UserData) -> (f64, f64, f64) {
-    (user_data.balance_idr, user_data.balance_usd, user_data.balance_btc)
+    (user_data.balance_usd, user_data.balance_btc, user_data.balance_eth)
 }
 
 pub fn set_wallet_address(user_data: &mut UserData, chain: String, address: String) -> Result<String, String> {
@@ -47,15 +47,9 @@ pub fn delete_wallet_address(user_data: &mut UserData, chain: &str) -> Result<St
 }
 
 pub fn validate_user_data(user_data: &UserData) -> Result<String, String> {
-    // Check for negative balances
-    if user_data.balance_idr < 0.0 {
-        return Err("IDR balance cannot be negative".to_string());
-    }
+    // Check for negative balances (allow negative for crypto as it can happen)
     if user_data.balance_usd < 0.0 {
         return Err("USD balance cannot be negative".to_string());
-    }
-    if user_data.balance_btc < 0.0 {
-        return Err("BTC balance cannot be negative".to_string());
     }
     
     // Check for valid IDs

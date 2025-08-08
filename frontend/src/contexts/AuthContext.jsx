@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { backendUtils, transactionService, userService, currencyService } from '../services/backend';
+import { authService, balanceService, currencyService, transactionService } from '../services/backend';
 
 const AuthContext = createContext();
 
@@ -14,7 +14,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [currency, setCurrency] = useState('IDR');
+  const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(true);
 
   // Initialize authentication
@@ -22,13 +22,13 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        const isAuth = await backendUtils.isAuthenticated();
+        const isAuth = await authService.isAuthenticated();
         console.log('Initial auth check:', isAuth);
         setIsLoggedIn(isAuth);
         
         if (isAuth) {
           try {
-            const currentUser = await backendUtils.getCurrentUser();
+            const currentUser = await authService.getCurrentUser();
             setUser(currentUser);
           } catch (userError) {
             console.error('Error getting current user:', userError);
@@ -53,18 +53,18 @@ export const AuthProvider = ({ children }) => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      await backendUtils.login();
+      await authService.login();
       
       // Wait a bit for the login to complete
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      const isAuth = await backendUtils.isAuthenticated();
+      const isAuth = await authService.isAuthenticated();
       console.log('Login result - isAuthenticated:', isAuth);
       setIsLoggedIn(isAuth);
       
       if (isAuth) {
         try {
-          const currentUser = await backendUtils.getCurrentUser();
+          const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
         } catch (userError) {
           console.error('Error getting current user after login:', userError);
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const handleLogout = async () => {
     try {
-      await backendUtils.logout();
+      await authService.logout();
       setIsLoggedIn(false);
       setUser(null);
     } catch (error) {
@@ -91,37 +91,105 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Currency conversion
-  const convertCurrency = async (amount, fromCurrency, toCurrency) => {
+  // Get balance breakdown
+  const getBalanceBreakdown = async () => {
     try {
-      const result = await currencyService.convertCurrency(amount, fromCurrency, toCurrency);
-      if (result.success) {
-        return result.data;
-      }
-      return amount; // Fallback to original amount
+      const breakdown = await balanceService.getBalanceBreakdown();
+      return breakdown;
     } catch (error) {
-      console.error('Currency conversion error:', error);
-      return amount; // Fallback to original amount
+      console.error('Get balance breakdown error:', error);
+      return {
+        usd_balance: 0,
+        btc_balance: 0,
+        eth_balance: 0,
+        sol_balance: 0,
+        btc_usd_value: 0,
+        eth_usd_value: 0,
+        sol_usd_value: 0,
+        total_usd_value: 0,
+        is_negative: false,
+        negative_reason: null,
+      };
     }
   };
 
-  // Get exchange rate
-  const getExchangeRate = async (fromCurrency, toCurrency) => {
+  // Get portfolio summary
+  const getPortfolioSummary = async () => {
     try {
-      const result = await currencyService.getCurrencyRate(fromCurrency, toCurrency);
-      if (result.success) {
-        return result.data;
-      }
-      return null;
+      const summary = await balanceService.getPortfolioSummary();
+      return summary;
     } catch (error) {
-      console.error('Get exchange rate error:', error);
-      return null;
+      console.error('Get portfolio summary error:', error);
+      return {
+        total_value_usd: 0,
+        total_value_idr: 0,
+        asset_allocation: {},
+        balance_breakdown: {
+          usd_balance: 0,
+          btc_balance: 0,
+          eth_balance: 0,
+          sol_balance: 0,
+          btc_usd_value: 0,
+          eth_usd_value: 0,
+          sol_usd_value: 0,
+          total_usd_value: 0,
+          is_negative: false,
+          negative_reason: null,
+        },
+        diversification_score: 0,
+      };
+    }
+  };
+
+  // Get currency rates
+  const getCurrencyRates = async () => {
+    try {
+      const rates = await currencyService.getCurrencyRates();
+      return rates;
+    } catch (error) {
+      console.error('Get currency rates error:', error);
+      return {
+        usd_to_idr: 0,
+        btc_to_usd: 0,
+        eth_to_usd: 0,
+        sol_to_usd: 0,
+        last_updated: 0,
+      };
+    }
+  };
+
+  // Fetch real-time rates
+  const fetchRealTimeRates = async () => {
+    try {
+      const rates = await currencyService.fetchRealTimeRates();
+      return rates;
+    } catch (error) {
+      console.error('Fetch real-time rates error:', error);
+      throw error;
+    }
+  };
+
+  // Convert USD to display currency
+  const convertToDisplayCurrency = (usdAmount, rates) => {
+    if (currency === 'USD') return usdAmount;
+    if (currency === 'IDR' && rates.usd_to_idr > 0) {
+      return usdAmount * rates.usd_to_idr;
+    }
+    return usdAmount; // Fallback to USD
+  };
+
+  // Get currency symbol
+  const getCurrencySymbol = () => {
+    switch (currency) {
+      case 'IDR': return 'Rp';
+      case 'USD': return '$';
+      default: return '$';
     }
   };
 
   // Format currency
   const formatCurrency = (amount, currencyCode) => {
-    const formatter = new Intl.NumberFormat('id-ID', {
+    const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
       minimumFractionDigits: currencyCode === 'BTC' ? 8 : 2,
@@ -129,87 +197,47 @@ export const AuthProvider = ({ children }) => {
     return formatter.format(amount);
   };
 
-  // Get user balance
-  const getUserBalance = async () => {
-    try {
-      const result = await userService.getUserBalanceSummary();
-      if (result.success) {
-        return result.data;
-      }
-      return { balance_idr: 0, balance_usd: 0, balance_btc: 0 };
-    } catch (error) {
-      console.error('Get user balance error:', error);
-      return { balance_idr: 0, balance_usd: 0, balance_btc: 0 };
-    }
-  };
-
-  // Get user summary
-  const getUserSummary = async () => {
-    try {
-      const result = await userService.getUserSummary();
-      if (result.success) {
-        return result.data;
-      }
-      return { total_transactions: 0, total_budgets: 0, total_goals: 0, unread_notifications: 0 };
-    } catch (error) {
-      console.error('Get user summary error:', error);
-      return { total_transactions: 0, total_budgets: 0, total_goals: 0, unread_notifications: 0 };
-    }
-  };
-
   // Get transactions
   const getTransactions = async () => {
     try {
-      const result = await transactionService.getTransactions();
-      if (result.success) {
-        return result.data;
-      }
-      return [];
+      const transactions = await transactionService.getTransactions();
+      return transactions;
     } catch (error) {
       console.error('Get transactions error:', error);
       return [];
     }
   };
 
-  // Get balance by currency
-  const getBalance = async (currencyCode, yearMonth = null) => {
+  // Get transactions by source
+  const getTransactionsBySource = async (source) => {
     try {
-      const result = await transactionService.getBalance(currencyCode, yearMonth);
-      if (result.success) {
-        return result.data;
-      }
-      return 0;
+      const transactions = await transactionService.getTransactionsBySource(source);
+      return transactions;
     } catch (error) {
-      console.error('Get balance error:', error);
-      return 0;
+      console.error('Get transactions by source error:', error);
+      return [];
     }
   };
 
-  // Get total income
-  const getTotalIncome = async (currencyCode, yearMonth = null) => {
+  // Get transactions by period
+  const getTransactionsByPeriod = async (yearMonth) => {
     try {
-      const result = await transactionService.getTotalIncome(currencyCode, yearMonth);
-      if (result.success) {
-        return result.data;
-      }
-      return 0;
+      const transactions = await transactionService.getTransactionsByPeriod(yearMonth);
+      return transactions;
     } catch (error) {
-      console.error('Get total income error:', error);
-      return 0;
+      console.error('Get transactions by period error:', error);
+      return [];
     }
   };
 
-  // Get total expense
-  const getTotalExpense = async (currencyCode, yearMonth = null) => {
+  // Sync blockchain transactions
+  const syncBlockchainTransactions = async () => {
     try {
-      const result = await transactionService.getTotalExpense(currencyCode, yearMonth);
-      if (result.success) {
-        return result.data;
-      }
-      return 0;
+      const result = await transactionService.syncBlockchainTransactions();
+      return result;
     } catch (error) {
-      console.error('Get total expense error:', error);
-      return 0;
+      console.error('Sync blockchain transactions error:', error);
+      throw error;
     }
   };
 
@@ -224,17 +252,21 @@ export const AuthProvider = ({ children }) => {
     // Currency
     currency,
     setCurrency,
-    convertCurrency,
-    getExchangeRate,
+    getCurrencyRates,
+    fetchRealTimeRates,
+    convertToDisplayCurrency,
+    getCurrencySymbol,
     formatCurrency,
 
-    // Data
-    getUserBalance,
-    getUserSummary,
+    // Balance & Portfolio
+    getBalanceBreakdown,
+    getPortfolioSummary,
+
+    // Transactions
     getTransactions,
-    getBalance,
-    getTotalIncome,
-    getTotalExpense,
+    getTransactionsBySource,
+    getTransactionsByPeriod,
+    syncBlockchainTransactions,
   };
 
   return (

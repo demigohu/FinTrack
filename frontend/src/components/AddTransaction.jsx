@@ -8,18 +8,37 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
     amount: '',
     description: '',
     category: '',
-    isIncome: false,
-    currency: currency || 'IDR',
     date: new Date().toISOString().split('T')[0] // Default to today
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [transactionType, setTransactionType] = useState('expense'); // 'expense', 'income', or 'investment'
+  const [transactionType, setTransactionType] = useState('expense'); // 'expense' or 'income'
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Validate amount
+    if (parseFloat(formData.amount) <= 0) {
+      setError('Amount must be greater than 0');
+      setLoading(false);
+      return;
+    }
+
+    // Validate description
+    if (!formData.description.trim()) {
+      setError('Description cannot be empty');
+      setLoading(false);
+      return;
+    }
+
+    // Validate category
+    if (!formData.category.trim()) {
+      setError('Category cannot be empty');
+      setLoading(false);
+      return;
+    }
 
     // Validate date
     const selectedDate = new Date(formData.date);
@@ -33,10 +52,16 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
     }
 
     try {
-      console.log('Submitting transaction:', formData);
+      console.log('Submitting transaction:', {
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        transactionType,
+        category: formData.category,
+        date: formData.date
+      });
+
       const result = await transactionService.addManualTransaction(
         parseFloat(formData.amount),
-        formData.currency,
         formData.description,
         transactionType,
         formData.category,
@@ -45,25 +70,19 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
 
       console.log('Transaction result:', result);
 
-      if (result.success) {
-        setFormData({
-          amount: '',
-          description: '',
-          category: '',
-          isIncome: false,
-          currency: currency || 'IDR',
-          date: new Date().toISOString().split('T')[0]
-        });
-        setTransactionType('expense');
-        onTransactionAdded();
-        onClose();
-      } else {
-        console.error('Transaction failed:', result.error);
-        setError(result.error || 'Failed to add transaction');
-      }
+      // Reset form
+      setFormData({
+        amount: '',
+        description: '',
+        category: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+      setTransactionType('expense');
+      onTransactionAdded();
+      onClose();
     } catch (err) {
       console.error('Transaction error:', err);
-      setError(`Network error: ${err.message || 'Please try again.'}`);
+      setError(err.message || 'Failed to add transaction. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -133,33 +152,30 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
               >
                 💰 Income
               </button>
-              <button
-                type="button"
-                onClick={() => setTransactionType('investment')}
-                className={`flex-1 py-2 px-4 rounded-md border-2 transition-colors ${
-                  transactionType === 'investment'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                    : 'border-gray-300 bg-white text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white'
-                }`}
-              >
-                📈 Investment
-              </button>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Amount
+              Amount (USD)
             </label>
-            <input
-              type="number"
-              name="amount"
-              value={formData.amount}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder="Enter amount"
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-gray-500">$</span>
+              <input
+                type="number"
+                name="amount"
+                value={formData.amount}
+                onChange={handleInputChange}
+                required
+                step="0.01"
+                min="0.01"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="0.00"
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              All manual transactions are stored in USD
+            </p>
           </div>
 
           <div>
@@ -207,17 +223,18 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="">Select category</option>
-              {transactionType === 'income' && ['IDR', 'USD'].includes(formData.currency) && (
+              {transactionType === 'income' && (
                 <>
                   <option value="Salary">Salary</option>
                   <option value="Freelance">Freelance</option>
                   <option value="Business">Business</option>
                   <option value="Bonus">Bonus</option>
+                  <option value="Investment">Investment</option>
                   <option value="Other Income">Other Income</option>
                 </>
               )}
               
-              {transactionType === 'expense' && ['IDR', 'USD'].includes(formData.currency) && (
+              {transactionType === 'expense' && (
                 <>
                   <option value="Food & Dining">Food & Dining</option>
                   <option value="Transportation">Transportation</option>
@@ -227,46 +244,12 @@ export function AddTransaction({ isOpen, onClose, onTransactionAdded }) {
                   <option value="Education">Education</option>
                   <option value="Bills & Utilities">Bills & Utilities</option>
                   <option value="Housing">Housing</option>
+                  <option value="Investment">Investment</option>
                   <option value="Other Expense">Other Expense</option>
                 </>
               )}
-              
-              {['BTC', 'ETH', 'SOL'].includes(formData.currency) && (
-                <>
-                  <option value="Crypto_Buy">Buy {formData.currency}</option>
-                  <option value="Crypto_Sell">Sell {formData.currency}</option>
-                  <option value="Crypto_Transfer">Transfer {formData.currency}</option>
-                  <option value="Crypto_Received">Received {formData.currency}</option>
-                  <option value="Crypto_Sent">Sent {formData.currency}</option>
-                </>
-              )}
             </select>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Currency
-            </label>
-            <select
-              name="currency"
-              value={formData.currency}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <optgroup label="Fiat Money">
-                <option value="IDR">IDR - Indonesian Rupiah</option>
-                <option value="USD">USD - US Dollar</option>
-              </optgroup>
-              <optgroup label="Cryptocurrency">
-                <option value="BTC">BTC - Bitcoin</option>
-                <option value="ETH">ETH - Ethereum</option>
-                <option value="SOL">SOL - Solana</option>
-              </optgroup>
-            </select>
-          </div>
-
-
 
           <div className="flex space-x-3">
             <button

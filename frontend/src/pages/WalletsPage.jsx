@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { userService, bitcoinService } from '../services/backend';
+import { walletService } from '../services/backend';
 import Button from '../components/Button.jsx';
 import Card from '../components/Card.jsx';
 import Input from '../components/Input.jsx';
@@ -26,79 +26,104 @@ export default function WalletsPage() {
     
     try {
       // Load wallet address
-      const addressResult = await userService.getWalletAddress('BTC');
-      if (addressResult.success) {
+      const addressResult = await walletService.getWalletAddress('BTC');
+      if (addressResult) {
         setWalletData(prev => ({
           ...prev,
-          walletAddress: addressResult.data || ''
+          walletAddress: addressResult || ''
         }));
       }
 
-      // Load BTC balance
-      const balanceResult = await bitcoinService.getBtcBalance();
-      console.log('Balance result:', balanceResult);
-      
-      if (balanceResult.success && balanceResult.data !== null && balanceResult.data !== undefined) {
-        // Extract satoshis from Ok variant
-        let satoshis;
-        if (balanceResult.data && typeof balanceResult.data === 'object' && 'Ok' in balanceResult.data) {
-          satoshis = Number(balanceResult.data.Ok);
-        } else {
-          satoshis = Number(balanceResult.data);
-        }
-        console.log('Satoshis:', satoshis);
-        
-        if (!isNaN(satoshis) && satoshis > 0) {
-          try {
-            const btcResult = await bitcoinService.satoshisToBtc(satoshis);
-            console.log('BTC result:', btcResult);
-            
-            if (btcResult.success) {
-              setWalletData(prev => ({
-                ...prev,
-                btcBalance: btcResult.data || 0
-              }));
+      // Only try to load BTC balance if wallet address is set
+      if (addressResult && addressResult.trim() !== '') {
+        try {
+          const balanceResult = await walletService.getBtcBalance();
+          console.log('Balance result:', balanceResult);
+          
+          if (balanceResult !== null && balanceResult !== undefined) {
+            // Extract satoshis from Ok variant
+            let satoshis;
+            if (balanceResult && typeof balanceResult === 'object' && 'Ok' in balanceResult) {
+              satoshis = Number(balanceResult.Ok);
             } else {
-              // Fallback: convert manually if API fails
-              const btcBalance = satoshis / 100_000_000;
-              console.log('Fallback BTC balance:', btcBalance);
+              satoshis = Number(balanceResult);
+            }
+            console.log('Satoshis:', satoshis);
+            
+            if (!isNaN(satoshis) && satoshis > 0) {
+              try {
+                const btcResult = await walletService.satoshisToBtc(satoshis);
+                console.log('BTC result:', btcResult);
+                
+                if (btcResult) {
+                  setWalletData(prev => ({
+                    ...prev,
+                    btcBalance: btcResult || 0
+                  }));
+                } else {
+                  // Fallback: convert manually if API fails
+                  const btcBalance = satoshis / 100_000_000;
+                  console.log('Fallback BTC balance:', btcBalance);
+                  setWalletData(prev => ({
+                    ...prev,
+                    btcBalance: btcBalance
+                  }));
+                }
+              } catch (error) {
+                console.error('Error in BTC conversion:', error);
+                // Fallback: convert manually
+                const btcBalance = satoshis / 100_000_000;
+                setWalletData(prev => ({
+                  ...prev,
+                  btcBalance: btcBalance
+                }));
+              }
+            } else {
+              // No balance or invalid data
+              console.log('Invalid satoshis:', satoshis);
               setWalletData(prev => ({
                 ...prev,
-                btcBalance: btcBalance
+                btcBalance: 0
               }));
             }
-          } catch (error) {
-            console.error('Error in BTC conversion:', error);
-            // Fallback: convert manually
-            const btcBalance = satoshis / 100_000_000;
+          } else {
+            // No balance data
+            console.log('No balance data:', balanceResult);
             setWalletData(prev => ({
               ...prev,
-              btcBalance: btcBalance
+              btcBalance: 0
             }));
           }
-        } else {
-          // No balance or invalid data
-          console.log('Invalid satoshis:', satoshis);
+        } catch (balanceError) {
+          console.log('BTC balance not available (address not set):', balanceError.message);
           setWalletData(prev => ({
             ...prev,
             btcBalance: 0
           }));
         }
-      } else {
-        // No balance data
-        console.log('No balance data:', balanceResult);
-        setWalletData(prev => ({
-          ...prev,
-          btcBalance: 0
-        }));
-      }
 
-      // Load BTC transactions
-      const txResult = await bitcoinService.fetchBtcTransactions();
-      if (txResult.success) {
+        // Load BTC transactions only if wallet is connected
+        try {
+          const txResult = await walletService.getBtcTransactions();
+          if (txResult) {
+            setWalletData(prev => ({
+              ...prev,
+              btcTransactions: txResult || []
+            }));
+          }
+        } catch (txError) {
+          console.log('BTC transactions not available:', txError.message);
+          setWalletData(prev => ({
+            ...prev,
+            btcTransactions: []
+          }));
+        }
+      } else {
+        // No wallet address set
         setWalletData(prev => ({
           ...prev,
-          btcTransactions: txResult.data || []
+          btcBalance: 0,
+          btcTransactions: []
         }));
       }
     } catch (err) {
@@ -122,8 +147,8 @@ export default function WalletsPage() {
     
     setIsConnecting(true);
     try {
-      const result = await userService.setWalletAddress('BTC', customAddress.trim());
-      if (result.success) {
+      const result = await walletService.setWalletAddress('BTC', customAddress.trim());
+      if (result) {
         setWalletData(prev => ({
           ...prev,
           walletAddress: customAddress.trim()
@@ -145,8 +170,8 @@ export default function WalletsPage() {
 
   const disconnectBtc = async () => {
     try {
-      const result = await userService.setWalletAddress('BTC', '');
-      if (result.success) {
+      const result = await walletService.setWalletAddress('BTC', '');
+      if (result) {
         setWalletData(prev => ({
           ...prev,
           walletAddress: '',

@@ -1,19 +1,15 @@
 import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { userService, bitcoinService, currencyService } from '../services/backend';
+import { balanceService, currencyService } from '../services/backend';
 import ChartComponent from '../components/ChartComponent.jsx';
 import Card from '../components/Card.jsx';
 import Progress from '../components/Progress.jsx';
 
 export default function PortfolioPage() {
   const { currency, setCurrency } = useContext(AuthContext);
-  const [portfolioData, setPortfolioData] = useState({
-    balance_idr: 0,
-    balance_usd: 0,
-    balance_btc: 0,
-    btcToIdr: 0,
-    usdToIdr: 0
-  });
+  const [balanceBreakdown, setBalanceBreakdown] = useState({});
+  const [portfolioSummary, setPortfolioSummary] = useState({});
+  const [currencyRates, setCurrencyRates] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,76 +19,19 @@ export default function PortfolioPage() {
     setError('');
     
     try {
-      // Load user balance summary
-      const balanceResult = await userService.getUserBalanceSummary();
-      if (balanceResult.success) {
-        setPortfolioData(prev => ({
-          ...prev,
-          ...balanceResult.data
-        }));
-      }
+      // Load balance breakdown
+      const breakdown = await balanceService.getBalanceBreakdown();
+      setBalanceBreakdown(breakdown);
 
-      // Load BTC balance
-      const btcResult = await bitcoinService.getBtcBalance();
-      if (btcResult.success && btcResult.data !== null && btcResult.data !== undefined) {
-        // Extract satoshis from Ok variant
-        let satoshis;
-        if (btcResult.data && typeof btcResult.data === 'object' && 'Ok' in btcResult.data) {
-          satoshis = Number(btcResult.data.Ok);
-        } else {
-          satoshis = Number(btcResult.data);
-        }
-        
-        if (!isNaN(satoshis) && satoshis > 0) {
-          try {
-            const btcBalanceResult = await bitcoinService.satoshisToBtc(satoshis);
-            if (btcBalanceResult.success) {
-              setPortfolioData(prev => ({
-                ...prev,
-                balance_btc: btcBalanceResult.data || 0
-              }));
-            } else {
-              // Fallback: convert manually if API fails
-              const btcBalance = satoshis / 100_000_000;
-              setPortfolioData(prev => ({
-                ...prev,
-                balance_btc: btcBalance
-              }));
-            }
-          } catch (error) {
-            console.error('Error converting BTC balance for portfolio:', error);
-            // Fallback: convert manually
-            const btcBalance = satoshis / 100_000_000;
-            setPortfolioData(prev => ({
-              ...prev,
-              balance_btc: btcBalance
-            }));
-          }
-        } else {
-          setPortfolioData(prev => ({
-            ...prev,
-            balance_btc: 0
-          }));
-        }
-      } else {
-        setPortfolioData(prev => ({
-          ...prev,
-          balance_btc: 0
-        }));
-      }
+      // Load portfolio summary
+      const portfolio = await balanceService.getPortfolioSummary();
+      setPortfolioSummary(portfolio);
 
-      // Load exchange rates
-      const ratesResult = await currencyService.getAllRates();
-      if (ratesResult.success) {
-        const rates = ratesResult.data;
-        setPortfolioData(prev => ({
-          ...prev,
-          btcToIdr: rates.BTC?.IDR || 0,
-          usdToIdr: rates.USD?.IDR || 0
-        }));
-      }
+      // Load currency rates
+      const rates = await currencyService.getCurrencyRates();
+      setCurrencyRates(rates);
     } catch (err) {
-      setError('Failed to load portfolio data');
+      setError('Failed to load portfolio data: ' + err.message);
       console.error('Error loading portfolio data:', err);
     } finally {
       setLoading(false);
@@ -103,29 +42,46 @@ export default function PortfolioPage() {
     loadPortfolioData();
   }, []);
 
+  // Convert USD to display currency
+  const convertToDisplayCurrency = (usdAmount) => {
+    if (currency === 'USD') return usdAmount;
+    if (currency === 'IDR' && currencyRates.usd_to_idr > 0) {
+      return usdAmount * currencyRates.usd_to_idr;
+    }
+    return usdAmount; // Fallback to USD
+  };
+
+  // Get currency symbol
+  const getCurrencySymbol = () => {
+    switch (currency) {
+      case 'IDR': return 'Rp';
+      case 'USD': return '$';
+      default: return '$';
+    }
+  };
+
   // Hitung alokasi aset
   const allocation = useMemo(() => {
-    const idr = Number(portfolioData.balance_idr || 0);
-    const usd = Number(portfolioData.balance_usd || 0) * Number(portfolioData.usdToIdr || 1);
-    const btc = Number(portfolioData.balance_btc || 0) * Number(portfolioData.btcToIdr || 1);
-    const total = idr + usd + btc;
+    const usd = Number(balanceBreakdown.usd_balance || 0);
+    const btc = Number(balanceBreakdown.btc_usd_value || 0);
+    const eth = Number(balanceBreakdown.eth_usd_value || 0);
+    const sol = Number(balanceBreakdown.sol_usd_value || 0);
+    const total = usd + btc + eth + sol;
+    
     return [
-      { label: 'IDR', value: idr, percent: total ? (idr / total) * 100 : 0 },
-      { label: 'USD', value: usd, percent: total ? (usd / total) * 100 : 0 },
-      { label: 'BTC', value: btc, percent: total ? (btc / total) * 100 : 0 },
+      { label: 'USD', value: usd, percent: total ? (usd / total) * 100 : 0, color: '#10B981' },
+      { label: 'BTC', value: btc, percent: total ? (btc / total) * 100 : 0, color: '#F7931A' },
+      { label: 'ETH', value: eth, percent: total ? (eth / total) * 100 : 0, color: '#627EEA' },
+      { label: 'SOL', value: sol, percent: total ? (sol / total) * 100 : 0, color: '#9945FF' },
     ];
-  }, [portfolioData]);
+  }, [balanceBreakdown]);
 
   // Data untuk pie chart alokasi aset
   const pieChartData = {
     labels: allocation.map(a => a.label),
     datasets: [{
       data: allocation.map(a => a.value),
-      backgroundColor: [
-        '#3B82F6', // Blue
-        '#10B981', // Green
-        '#F59E0B', // Yellow
-      ],
+      backgroundColor: allocation.map(a => a.color),
       borderWidth: 2,
       borderColor: '#ffffff'
     }]
@@ -169,19 +125,35 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold mb-4">Portfolio</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold mb-4">Portfolio</h2>
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Display Currency:
+          </label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="USD">USD</option>
+            <option value="IDR">IDR</option>
+          </select>
+        </div>
+      </div>
       
       {/* Portfolio Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <div className="text-center">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Total Portfolio Value
             </h3>
             <p className="text-3xl font-bold text-blue-600">
-              IDR {(Number(portfolioData.balance_idr || 0) + 
-                (Number(portfolioData.balance_usd || 0) * Number(portfolioData.usdToIdr || 1)) + 
-                (Number(portfolioData.balance_btc || 0) * Number(portfolioData.btcToIdr || 1))).toLocaleString()}
+              {getCurrencySymbol()}{convertToDisplayCurrency(Number(portfolioSummary.total_value_usd || 0)).toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Diversification Score: {Number(portfolioSummary.diversification_score || 0).toFixed(1)}%
             </p>
           </div>
         </Card>
@@ -189,10 +161,13 @@ export default function PortfolioPage() {
         <Card>
           <div className="text-center">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              IDR Balance
+              USD Balance
             </h3>
             <p className="text-3xl font-bold text-green-600">
-              IDR {Number(portfolioData.balance_idr || 0).toLocaleString()}
+              ${Number(balanceBreakdown.usd_balance || 0).toFixed(2)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {getCurrencySymbol()}{convertToDisplayCurrency(Number(balanceBreakdown.usd_balance || 0)).toLocaleString()}
             </p>
           </div>
         </Card>
@@ -202,8 +177,91 @@ export default function PortfolioPage() {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               BTC Balance
             </h3>
-            <p className="text-3xl font-bold text-yellow-600">
-              {Number(portfolioData.balance_btc || 0).toFixed(8)} BTC
+            <p className="text-3xl font-bold text-orange-600">
+              ₿{Number(balanceBreakdown.btc_balance || 0).toFixed(8)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              ${Number(balanceBreakdown.btc_usd_value || 0).toFixed(2)}
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Crypto Value
+            </h3>
+            <p className="text-3xl font-bold text-purple-600">
+              ${Number(balanceBreakdown.btc_usd_value || 0) + Number(balanceBreakdown.eth_usd_value || 0) + Number(balanceBreakdown.sol_usd_value || 0)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              BTC + ETH + SOL
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Balance Breakdown Alert */}
+      {balanceBreakdown.is_negative && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Negative Balance Detected
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                {balanceBreakdown.negative_reason}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crypto Balances Detail */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              ETH Balance
+            </h3>
+            <p className="text-3xl font-bold text-blue-600">
+              Ξ{Number(balanceBreakdown.eth_balance || 0).toFixed(6)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              ${Number(balanceBreakdown.eth_usd_value || 0).toFixed(2)}
+            </p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              SOL Balance
+            </h3>
+            <p className="text-3xl font-bold text-purple-600">
+              ◎{Number(balanceBreakdown.sol_balance || 0).toFixed(6)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              ${Number(balanceBreakdown.sol_usd_value || 0).toFixed(2)}
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Total Crypto
+            </h3>
+            <p className="text-3xl font-bold text-indigo-600">
+              ${Number(balanceBreakdown.btc_usd_value || 0) + Number(balanceBreakdown.eth_usd_value || 0) + Number(balanceBreakdown.sol_usd_value || 0)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              All Cryptocurrencies
             </p>
           </div>
         </Card>
@@ -228,7 +286,7 @@ export default function PortfolioPage() {
               <Progress 
                 value={asset.percent} 
                 max={100} 
-                color={idx === 0 ? 'blue' : idx === 1 ? 'green' : 'yellow'}
+                color={asset.label === 'USD' ? 'green' : asset.label === 'BTC' ? 'orange' : asset.label === 'ETH' ? 'blue' : 'purple'}
                 size="sm"
               />
             </div>
@@ -244,8 +302,26 @@ export default function PortfolioPage() {
       
       {/* Risk analysis */}
       <Card>
-        <div className="font-semibold mb-2">Risk Analysis</div>
-        <div className="text-gray-500 text-sm">Your portfolio is well diversified.</div>
+        <div className="font-semibold mb-2">Portfolio Analysis</div>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-600">Diversification Score:</span>
+            <span className="text-sm font-medium">{Number(portfolioSummary.diversification_score || 0).toFixed(1)}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-600">Total Value (USD):</span>
+            <span className="text-sm font-medium">${Number(portfolioSummary.total_value_usd || 0).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-600">Total Value (IDR):</span>
+            <span className="text-sm font-medium">Rp{Number(portfolioSummary.total_value_idr || 0).toLocaleString()}</span>
+          </div>
+          <div className="text-gray-500 text-sm mt-2">
+            {Number(portfolioSummary.diversification_score || 0) > 50 
+              ? "Your portfolio is well diversified." 
+              : "Consider diversifying your portfolio more."}
+          </div>
+        </div>
       </Card>
     </div>
   );

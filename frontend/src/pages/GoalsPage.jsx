@@ -36,10 +36,10 @@ export default function GoalsPage() {
     
     try {
       const result = await goalService.getGoals();
-      if (result.success) {
-        setGoals(result.data);
+      if (result) {
+        setGoals(result);
       } else {
-        setError(result.error || 'Failed to load goals');
+        setError('Failed to load goals');
       }
     } catch (err) {
       setError('Failed to load goals');

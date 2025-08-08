@@ -1,3 +1,15 @@
+type BalanceBreakdown = record {
+  eth_balance : float64;
+  usd_balance : float64;
+  sol_usd_value : float64;
+  btc_usd_value : float64;
+  negative_reason : opt text;
+  btc_balance : float64;
+  eth_usd_value : float64;
+  sol_balance : float64;
+  total_usd_value : float64;
+  is_negative : bool;
+};
 type Budget = record {
   id : nat64;
   updated_at : nat64;
@@ -7,6 +19,13 @@ type Budget = record {
   currency : text;
   category : text;
   budget : float64;
+};
+type CurrencyRate = record {
+  btc_to_usd : float64;
+  last_updated : nat64;
+  eth_to_usd : float64;
+  sol_to_usd : float64;
+  usd_to_idr : float64;
 };
 type GetUtxosResponse = record { utxos : vec Utxo };
 type Goal = record {
@@ -23,6 +42,12 @@ type Goal = record {
   category : text;
   priority : text;
 };
+type HttpHeader = record { value : text; name : text };
+type HttpResponse = record {
+  status : nat;
+  body : blob;
+  headers : vec HttpHeader;
+};
 type Notification = record {
   id : nat64;
   is_read : bool;
@@ -33,9 +58,17 @@ type Notification = record {
   category : text;
 };
 type OutPoint = record { txid : blob; vout : nat32 };
+type PortfolioSummary = record {
+  diversification_score : float64;
+  balance_breakdown : BalanceBreakdown;
+  asset_allocation : vec record { text; float64 };
+  total_value_idr : float64;
+  total_value_usd : float64;
+};
 type Result = variant { Ok : text; Err : text };
 type Result_1 = variant { Ok : GetUtxosResponse; Err : text };
-type Result_2 = variant { Ok : nat64; Err : text };
+type Result_2 = variant { Ok : CurrencyRate; Err : text };
+type Result_3 = variant { Ok : nat64; Err : text };
 type Transaction = record {
   id : nat64;
   conversion_rate : opt float64;
@@ -54,23 +87,30 @@ type Transaction = record {
   converted_amount : opt float64;
   amount : float64;
 };
+type TransformArgs = record { context : blob; response : HttpResponse };
 type Utxo = record { value : nat64; outpoint : OutPoint };
 service : () -> {
   add_budget : (text, float64, text, text) -> (Result);
   add_goal : (text, text, float64, float64, text, text, text, text) -> (Result);
-  add_manual_transaction : (float64, text, text, text, text, text) -> (Result);
-  add_transaction : (float64, text, text, bool, text, text) -> (Result);
+  add_manual_transaction : (float64, text, text, text, text) -> (Result);
+  add_transaction : (float64, text, bool, text, text) -> (Result);
   btc_to_satoshis : (float64) -> (nat64) query;
   convert_currency : (float64, text, text) -> (opt float64) query;
   fetch_btc_transactions : () -> (Result_1);
+  fetch_real_time_rates : () -> (Result_2);
   format_btc_amount : (float64) -> (text) query;
   get_all_rates : () -> (vec record { text; text; float64 }) query;
   get_balance : (text, opt text) -> (float64) query;
-  get_btc_balance : () -> (Result_2);
+  get_balance_breakdown : () -> (BalanceBreakdown) query;
+  get_btc_balance : () -> (Result_3);
   get_budgets : (opt text) -> (vec Budget) query;
+  get_crypto_balances : () -> (float64, float64, float64) query;
   get_currency_rate : (text, text) -> (opt float64) query;
+  get_currency_rates : () -> (CurrencyRate) query;
   get_goals : () -> (vec Goal) query;
   get_notifications : (opt text, bool) -> (vec Notification) query;
+  get_portfolio_summary : () -> (PortfolioSummary) query;
+  get_total_balance_usd : () -> (float64) query;
   get_total_expense : (text, opt text) -> (float64) query;
   get_total_income : (text, opt text) -> (float64) query;
   get_transactions : () -> (vec Transaction) query;
@@ -86,6 +126,8 @@ service : () -> {
   set_currency_rate : (text, text, float64) -> (Result);
   set_wallet_address : (text, text) -> (Result);
   sync_blockchain_transactions : () -> (Result);
+  transform : (TransformArgs) -> (HttpResponse) query;
   update_budget_spent : () -> (Result);
+  update_currency_rates : (float64, float64, float64, float64) -> (Result);
   validate_btc_address : (text) -> (bool) query;
 }

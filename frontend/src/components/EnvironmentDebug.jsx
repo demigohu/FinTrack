@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { backendUtils } from '../services/backend';
+import { authService } from '../services/backend';
 
 export default function EnvironmentDebug() {
   const [config, setConfig] = useState(null);
@@ -8,13 +8,27 @@ export default function EnvironmentDebug() {
 
   useEffect(() => {
     // Load configuration
-    const envInfo = backendUtils.getEnvironmentInfo();
+    const envInfo = authService.getEnvironmentInfo();
     setConfig(envInfo);
 
     // Check backend status
     const checkBackendStatus = async () => {
-      const status = await backendUtils.getBackendStatus();
-      setBackendStatus(status);
+      try {
+        const isAuth = await authService.isAuthenticated();
+        setBackendStatus({
+          connected: true,
+          authenticated: isAuth,
+          error: null,
+          environment: envInfo
+        });
+      } catch (error) {
+        setBackendStatus({
+          connected: false,
+          authenticated: false,
+          error: error.message,
+          environment: envInfo
+        });
+      }
     };
     checkBackendStatus();
   }, []);

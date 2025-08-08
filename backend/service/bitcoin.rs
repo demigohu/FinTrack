@@ -84,8 +84,10 @@ pub fn sync_utxos_to_transactions(user_data: &mut UserData, utxos_response: &Get
         // Check if transaction already exists
         let already_recorded = user_data.transactions.iter().any(|tx| {
             tx.description.contains(&txid_hex) && 
-            tx.category == "Crypto-BTC" && 
-            tx.amount == amount_btc
+            tx.description.contains(&format!("vout: {}", vout)) &&
+            tx.category == "Crypto_Received" && 
+            tx.amount == amount_btc &&
+            tx.source.as_deref() == Some("blockchain")
         });
         
         if !already_recorded {

@@ -1,10 +1,9 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { userService } from '../services/backend';
 import Button from '../components/Button.jsx';
-import Input from '../components/Input.jsx';
 import Card from '../components/Card.jsx';
 import Badge from '../components/Badge.jsx';
+import Input from '../components/Input.jsx';
 
 export default function AIAdvisorPage() {
   const { currency, setCurrency } = useContext(AuthContext);

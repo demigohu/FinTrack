@@ -4,6 +4,10 @@ pub mod service;
 
 use models::*;
 use ic_cdk::api::caller;
+use ic_cdk::api::management_canister::http_request::{
+    http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformArgs,
+    TransformContext,
+};
 use std::cell::RefCell;
 use ic_stable_structures::{memory_manager::{MemoryId, MemoryManager, VirtualMemory}, DefaultMemoryImpl, StableBTreeMap};
 use candid::Principal;
@@ -19,8 +23,23 @@ thread_local! {
 
 #[ic_cdk::init]
 fn init() {
-    // Initialize default currency rates
-    service::currency::initialize_default_rates();
+    // No more default rates initialization
+    // Rates will be fetched from CoinGecko when needed
+}
+
+// Helper function to initialize default user data
+fn get_or_initialize_user_data(user: Principal) -> UserData {
+    USERS.with(|users| {
+        let users = users.borrow();
+        let mut user_data = users.get(&user).unwrap_or_default();
+        
+        // Initialize empty currency rates for new users
+        if user_data.currency_rates.usd_to_idr == 0.0 {
+            user_data.currency_rates = service::currency::get_empty_currency_rates();
+        }
+        
+        user_data
+    })
 }
 
 // ===== TRANSACTION METHODS =====
@@ -28,7 +47,6 @@ fn init() {
 #[ic_cdk::update]
 fn add_transaction(
     amount: f64,
-    currency: String,
     description: String,
     is_income: bool,
     category: String,
@@ -46,7 +64,7 @@ fn add_transaction(
         let tx = Transaction {
             id: user_data.next_tx_id,
             amount,
-            currency,
+            currency: "USD".to_string(), // Always USD for manual transactions
             description,
             is_income,
             timestamp: utils::get_current_time(),
@@ -55,7 +73,7 @@ fn add_transaction(
             converted_amount: None,
             converted_currency: None,
             conversion_rate: None,
-            // NEW FIELDS with defaults for backward compatibility
+            // UPDATED: Simplified transaction types
             transaction_type: Some(if is_income { "income".to_string() } else { "expense".to_string() }),
             source: Some("manual".to_string()),
             txid: None,
@@ -74,15 +92,35 @@ fn add_transaction(
 #[ic_cdk::update]
 fn add_manual_transaction(
     amount: f64,
-    currency: String,
     description: String,
-    transaction_type: String,  // 'income', 'expense', 'investment'
+    transaction_type: String,  // 'income', 'expense' only (removed 'investment')
     category: String,
     date: String,
 ) -> Result<String, String> {
     let user = caller();
     if user == Principal::anonymous() {
         return Err("Please log in with Internet Identity".to_string());
+    }
+
+    // Enhanced validation
+    if amount <= 0.0 {
+        return Err("Amount must be greater than 0".to_string());
+    }
+    
+    if description.trim().is_empty() {
+        return Err("Description cannot be empty".to_string());
+    }
+    
+    if transaction_type != "income" && transaction_type != "expense" {
+        return Err("Transaction type must be 'income' or 'expense'".to_string());
+    }
+    
+    if category.trim().is_empty() {
+        return Err("Category cannot be empty".to_string());
+    }
+    
+    if date.trim().is_empty() {
+        return Err("Date cannot be empty".to_string());
     }
 
     USERS.with(|users| {
@@ -92,7 +130,7 @@ fn add_manual_transaction(
         let tx = Transaction {
             id: user_data.next_tx_id,
             amount,
-            currency,
+            currency: "USD".to_string(), // Always USD for manual transactions
             description,
             is_income: transaction_type == "income",
             timestamp: utils::get_current_time(),
@@ -101,7 +139,6 @@ fn add_manual_transaction(
             converted_amount: None,
             converted_currency: None,
             conversion_rate: None,
-            // NEW FIELDS
             transaction_type: Some(transaction_type),
             source: Some("manual".to_string()),
             txid: None,
@@ -528,6 +565,91 @@ async fn sync_blockchain_transactions() -> Result<String, String> {
     }
     
     result
+}
+
+// ===== NEW BALANCE & PORTFOLIO METHODS =====
+
+#[ic_cdk::query]
+fn get_balance_breakdown() -> BalanceBreakdown {
+    let user = caller();
+    let user_data = get_or_initialize_user_data(user);
+    user_data.get_balance_breakdown()
+}
+
+#[ic_cdk::query]
+fn get_portfolio_summary() -> PortfolioSummary {
+    let user = caller();
+    let user_data = get_or_initialize_user_data(user);
+    user_data.get_portfolio_summary()
+}
+
+#[ic_cdk::query]
+fn get_currency_rates() -> CurrencyRate {
+    let user = caller();
+    let user_data = get_or_initialize_user_data(user);
+    user_data.currency_rates.clone()
+}
+
+#[ic_cdk::update]
+fn update_currency_rates(
+    usd_to_idr: f64,
+    btc_to_usd: f64,
+    eth_to_usd: f64,
+    sol_to_usd: f64,
+) -> Result<String, String> {
+    let user = caller();
+    if user == Principal::anonymous() {
+        return Err("Please log in with Internet Identity".to_string());
+    }
+
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+        let mut user_data = users.get(&user).unwrap_or_default();
+        
+        user_data.currency_rates = CurrencyRate {
+            usd_to_idr,
+            btc_to_usd,
+            eth_to_usd,
+            sol_to_usd,
+            last_updated: utils::get_current_time(),
+        };
+        
+        users.insert(user, user_data);
+        Ok("Currency rates updated successfully".to_string())
+    })
+}
+
+// ===== UPDATED BALANCE METHODS =====
+
+#[ic_cdk::query]
+fn get_total_balance_usd() -> f64 {
+    let user = caller();
+    let user_data = get_or_initialize_user_data(user);
+    let breakdown = user_data.get_balance_breakdown();
+    breakdown.total_usd_value
+}
+
+#[ic_cdk::query]
+fn get_crypto_balances() -> (f64, f64, f64) {
+    let user = caller();
+    let user_data = get_or_initialize_user_data(user);
+    (user_data.balance_btc, user_data.balance_eth, user_data.balance_sol)
+}
+
+// ===== REAL-TIME RATES =====
+
+#[ic_cdk::update]
+async fn fetch_real_time_rates() -> Result<CurrencyRate, String> {
+    service::currency::fetch_real_time_rates().await
+}
+
+#[ic_cdk::query]
+fn transform(raw: TransformArgs) -> HttpResponse {
+    HttpResponse {
+        status: raw.response.status,
+        headers: raw.response.headers,
+        body: raw.response.body,
+    }
 }
 
 ic_cdk::export_candid!();

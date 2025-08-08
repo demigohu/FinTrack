@@ -31,10 +31,10 @@ export default function BudgetPage() {
     
     try {
       const result = await budgetService.getBudgets();
-      if (result.success) {
-        setBudgets(result.data);
+      if (result) {
+        setBudgets(result);
       } else {
-        setError(result.error || 'Failed to load budgets');
+        setError('Failed to load budgets');
       }
     } catch (err) {
       setError('Failed to load budgets');

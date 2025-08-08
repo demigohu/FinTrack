@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { userService, backendUtils } from '../services/backend';
+import { authService } from '../services/backend';
 import CurrencySelector from '../components/CurrencySelector.jsx';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
@@ -32,15 +32,13 @@ export default function SettingsPage() {
     setError('');
     
     try {
-      // Load user profile
-      const profileResult = await userService.getUserSummary();
-      if (profileResult.success) {
-        setProfile(prev => ({
-          ...prev,
-          name: profileResult.data?.name || '',
-          email: profileResult.data?.email || ''
-        }));
-      }
+      // TODO: Load user profile from new backend API
+      // For now, we'll use default values
+      setProfile(prev => ({
+        ...prev,
+        name: 'User',
+        email: 'user@example.com'
+      }));
 
       // TODO: Load user settings from backend
       // For now, we'll use default settings
@@ -86,7 +84,7 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     try {
-      await backendUtils.logout();
+      await authService.logout();
       // Redirect will be handled by AuthContext
     } catch (err) {
       alert('Failed to logout');

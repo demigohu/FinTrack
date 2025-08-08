@@ -1,0 +1,245 @@
+# 🎯 **MVP FEATURES PER PAGE (Complete List - Updated)**
+
+## **1. 🏠 Dashboard Page** (`/dashboard`)
+
+```javascript
+// MVP Dashboard Features:
+1. Total balance display (USD + BTC + ETH + SOL)
+2. Balance breakdown (jika minus, tampilkan detail)
+3. Frontend currency toggle (IDR/USD display only)
+4. Monthly income/expense summary (USD only)
+5. Recent transactions list (5 terakhir)
+6. Quick add transaction button (USD only)
+7. Basic charts (income vs expense, category distribution)
+8. Widget system (summary, progress, list, chart)
+9. Financial health score (0-100)
+10. Smart insights ("You spent 15% less this month")
+11. Real-time updates
+12. Quick actions (sync blockchain, view all transactions)
+13. Enhanced charts (6 months trend, savings rate)
+14. Budget progress overview
+15. Goal progress overview
+16. Notifications display
+```
+
+---
+
+## **2. 💰 Transactions Page** (`/transactions`)
+
+```javascript
+// MVP Transactions Features:
+1. Add transaction modal (USD only, no currency selection)
+2. Transaction type: Income/Expense only (no Investment)
+3. Filter by type (Income/Expense)
+4. Filter by category
+5. Filter by source (Manual/Blockchain)
+6. Filter by currency (USD/BTC/ETH/SOL)
+7. Tabs: "All Transactions" vs "Blockchain Transactions"
+8. Sync blockchain button
+9. Transaction list dengan detail
+10. Pagination
+11. Export CSV button
+12. Date range filter
+13. Amount range filter
+14. Search by description
+15. Bulk operations (select, edit, delete)
+16. Transaction categories dengan color coding
+17. Edit transaction inline
+18. Transaction notes/comments
+19. Transaction details modal
+20. Real-time transaction sync
+```
+
+---
+
+## **3. 📈 Portfolio Page** (`/portfolio`)
+
+```javascript
+// MVP Portfolio Features:
+1. Asset allocation pie chart (USD, BTC, ETH, SOL)
+2. Balance display breakdown
+3. Real-time crypto balances
+4. Exchange rate integration (USD rates)
+5. Portfolio value calculation (total USD)
+6. Asset percentage breakdown
+7. Historical chart (real data)
+8. Multi-asset support (BTC, ETH, SOL)
+9. Portfolio insights (diversification score)
+10. Negative balance breakdown (jika minus)
+```
+
+---
+
+## **4. 🏦 Wallets Page** (`/wallets`)
+
+```javascript
+// MVP Wallets Features: pada intinya di wallet page ini untuk management wallet user
+1. Bitcoin wallet connection
+2. Custom address input
+3. Real-time BTC balance
+4. Connect/disconnect functionality
+5. Balance conversion (satoshis to BTC)
+6. Refresh button
+7. Multi-wallet support (ETH, SOL)
+8. Error handling
+9. Wallet balance breakdown
+10. Network status (regtest/mainnet)
+```
+
+---
+
+## **5. 💸 Budget Page** (`/budget`)
+
+```javascript
+// MVP Budget Features:
+1. Budget creation & management (USD only)
+2. Category-based budgets
+3. Budget vs spent tracking
+4. Progress bars
+5. Budget charts
+6. Add/edit/delete budgets
+7. Currency support (USD display, IDR toggle)
+8. Budget summary cards
+9. Budget types (monthly, annual, rolling)
+10. Budget analytics ("You're 20% over budget")
+11. Budget alerts (overspending, milestones)
+12. Email/push notifications
+13. Automatic spending categorization
+14. Real-time budget updates
+15. Cross-currency budget management
+16. Budget vs transaction sync
+17. Budget templates
+18. Historical budget performance
+19. Negative budget handling
+20. Budget breakdown by category
+```
+
+---
+
+## **6. 🎯 Goals Page** (`/goals`)
+
+```javascript
+// MVP Goals Features:
+1. Goal creation & management (USD only)
+2. Progress tracking
+3. Priority levels (High/Medium/Low)
+4. Status management (Active/Paused/Completed)
+5. Deadline setting
+6. Category classification
+7. Progress visualization
+8. Goal summary cards
+9. Goal categories (short/medium/long term)
+10. Goal analytics ("Goal completion rate: 75%")
+11. Automatic progress updates
+12. Goal-linked savings accounts
+13. Goal templates
+14. Goal sharing
+15. Goal reminders
+16. Goal milestones
+17. Goal celebrations
+18. Goal notes/comments
+19. Cross-goal optimization
+20. Currency display toggle (IDR/USD)
+```
+
+---
+
+## **7. 📊 Analytics Page** (`/analytics`)
+
+```javascript
+// MVP Analytics Features:
+1. Income vs Expense charts (USD only)
+2. Category breakdown (doughnut chart)
+3. Currency filtering (USD/BTC/ETH/SOL)
+4. Basic financial reports
+5. Tabs system (Income vs Expense, Category Breakdown, Monthly Trend)
+6. Chain filtering (Manual/Blockchain)
+7. Advanced analytics (spending patterns)
+8. Custom reports (date range, category filter)
+9. Export to PDF/Excel
+10. Financial metrics (savings rate, expense ratio)
+11. Net worth tracking
+12. Daily spending patterns
+13. Weekly/monthly comparisons
+14. Year-over-year analysis
+15. Category spending trends
+16. Income source analysis
+17. Goal progress tracking
+18. Negative balance analysis
+19. Crypto vs Fiat spending analysis
+20. Currency conversion display (IDR/USD toggle)
+```
+
+---
+
+## **8. ⚙️ Settings Page** (`/settings`)
+
+```javascript
+// MVP Settings Features:
+1. Profile management
+2. Theme toggle (light/dark)
+3. Notification settings
+4. Currency preferences (IDR/USD display)
+5. Auto-sync settings
+6. Logout functionality
+7. Privacy settings
+8. Data export/import
+9. API key management
+10. Blockchain network settings
+11. Notification preferences (email, push, SMS)
+12. Profile picture
+13. Default currency display setting
+14. Sync frequency settings
+15. Wallet connection preferences
+```
+
+---
+
+## **9. ❓ Help Page** (`/help`)
+
+```javascript
+// MVP Help Features:
+1. FAQ section
+2. Tutorials
+3. Version information
+4. GitHub link
+5. Interactive tutorials
+6. Video guides
+7. Step-by-step walkthroughs
+8. Context-sensitive help
+9. Feature guides
+10. API documentation
+11. Troubleshooting guides
+12. Best practices
+13. User manual
+14. Contact support
+15. Bug reporting
+16. Feature requests
+17. Community forum
+18. In-app help tooltips
+19. Search functionality
+20. Multi-language support
+```
+
+---
+
+## **🔧 Currency System Rules:**
+
+### **Manual Transactions:**
+- **Currency: USD only** (no selection)
+- **Type: Income/Expense only** (no Investment)
+- **Amount: USD value**
+
+### **Blockchain Transactions:**
+- **Currency: BTC/ETH/SOL** (original crypto)
+- **Type: Received/Sent**
+- **Amount: Crypto value**
+
+### **Display:**
+- **Frontend toggle: IDR/USD** (for display only)
+- **Backend storage: USD for manual, crypto for blockchain**
+- **Total balance: USD equivalent** (with breakdown)
+
+### **Negative Balance:**
+- **Show detailed breakdown** of why balance is negative
+- **Display: USD amount, crypto amounts, total USD equivalent** 

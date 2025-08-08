@@ -12,6 +12,15 @@ pub fn add_transaction(user_data: &mut UserData, tx: Transaction) -> Result<Stri
         return Err("Amount must be positive".to_string());
     }
     
+    // Validate transaction type for manual transactions
+    if tx.source.as_deref() == Some("manual") {
+        if let Some(tx_type) = &tx.transaction_type {
+            if tx_type != "income" && tx_type != "expense" {
+                return Err("Manual transactions must be 'income' or 'expense'".to_string());
+            }
+        }
+    }
+    
     // Add transaction
     user_data.transactions.push(tx.clone());
     user_data.next_tx_id += 1;
@@ -50,6 +59,13 @@ pub fn get_transactions_by_category(user_data: &UserData, category: &str) -> Vec
 pub fn get_transactions_by_currency(user_data: &UserData, currency: &str) -> Vec<Transaction> {
     user_data.transactions.iter()
         .filter(|tx| tx.currency == currency)
+        .cloned()
+        .collect()
+}
+
+pub fn get_transactions_by_source(user_data: &UserData, source: &str) -> Vec<Transaction> {
+    user_data.transactions.iter()
+        .filter(|tx| tx.source.as_deref() == Some(source))
         .cloned()
         .collect()
 }
@@ -116,9 +132,10 @@ fn update_balance(user_data: &mut UserData, tx: &Transaction) {
     let amount = if tx.is_income { tx.amount } else { -tx.amount };
     
     match tx.currency.as_str() {
-        "IDR" => user_data.balance_idr += amount,
         "USD" => user_data.balance_usd += amount,
         "BTC" => user_data.balance_btc += amount,
+        "ETH" => user_data.balance_eth += amount,
+        "SOL" => user_data.balance_sol += amount,
         _ => {} // Handle other currencies if needed
     }
 }
@@ -127,9 +144,10 @@ fn reverse_balance_update(user_data: &mut UserData, tx: &Transaction) {
     let amount = if tx.is_income { -tx.amount } else { tx.amount };
     
     match tx.currency.as_str() {
-        "IDR" => user_data.balance_idr += amount,
         "USD" => user_data.balance_usd += amount,
         "BTC" => user_data.balance_btc += amount,
+        "ETH" => user_data.balance_eth += amount,
+        "SOL" => user_data.balance_sol += amount,
         _ => {} // Handle other currencies if needed
     }
 }
