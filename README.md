@@ -6,7 +6,8 @@
 
 ## 🚀 Live Demo
 
-- **Frontend:** [FinTrack Dashboard](http://vg3po-ix777-77774-qaafa-cai.localhost:4943/)
+- **Frontend:** [FinTrack Dashboard](https://aj65n-aiaaa-aaaap-qqf5a-cai.icp0.io/)
+- **Backend:** [FinTrack Backend](https://aj65n-aiaaa-aaaap-qqf5a-cai.icp0.io/)
 
 ## 🎯 Project Overview
 

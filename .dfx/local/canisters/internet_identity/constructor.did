@@ -50,7 +50,9 @@ type AuthnMethodConfirmationCode = record {
   expiration : Timestamp;
 };
 type AuthnMethodConfirmationError = variant {
+  InternalCanisterError : text;
   RegistrationModeOff;
+  Unauthorized : principal;
   NoAuthnMethodToConfirm;
   WrongCode : record { retries_left : nat8 };
 };
@@ -73,13 +75,20 @@ type AuthnMethodRegisterError = variant {
 };
 type AuthnMethodRegistrationInfo = record {
   expiration : Timestamp;
+  session : opt principal;
   authn_method : opt AuthnMethodData;
 };
 type AuthnMethodRegistrationModeEnterError = variant {
   InvalidRegistrationId : text;
+  InternalCanisterError : text;
   AlreadyInProgress;
   Unauthorized : principal;
-  InternalError : text;
+};
+type AuthnMethodRegistrationModeExitError = variant {
+  InternalCanisterError : text;
+  RegistrationModeOff;
+  Unauthorized : principal;
+  InvalidMetadata : text;
 };
 type AuthnMethodReplaceError = variant {
   AuthnMethodNotFound;
@@ -90,6 +99,10 @@ type AuthnMethodSecuritySettings = record {
   purpose : AuthnMethodPurpose;
 };
 type AuthnMethodSecuritySettingsReplaceError = variant { AuthnMethodNotFound };
+type AuthnMethodSessionInfo = record {
+  name : opt text;
+  created_at : opt Timestamp;
+};
 type BufferedArchiveEntry = record {
   sequence_number : nat64;
   entry : blob;
@@ -153,6 +166,7 @@ type DeviceProtection = variant { unprotected; protected };
 type DeviceRegistrationInfo = record {
   tentative_device : opt DeviceData;
   expiration : Timestamp;
+  tentative_session : opt principal;
 };
 type DeviceWithUsage = record {
   alias : text;
@@ -168,6 +182,12 @@ type DeviceWithUsage = record {
 type DummyAuthConfig = record { prompt_for_index : bool };
 type FrontendHostname = text;
 type GetAccountsError = variant {
+  InternalCanisterError : text;
+  Unauthorized : principal;
+};
+type GetDefaultAccountError = variant {
+  NoSuchOrigin : record { anchor_number : UserNumber };
+  NoSuchAnchor;
   InternalCanisterError : text;
   Unauthorized : principal;
 };
@@ -187,6 +207,7 @@ type GetIdAliasRequest = record {
   relying_party : FrontendHostname;
   identity_number : IdentityNumber;
 };
+type GoogleOpenIdConfig = record { client_id : text };
 type HeaderField = record { text; text };
 type HttpRequest = record {
   url : text;
@@ -226,6 +247,7 @@ type IdRegStartError = variant {
 };
 type IdentityAnchorInfo = record {
   name : opt text;
+  created_at : opt Timestamp;
   devices : vec DeviceWithUsage;
   openid_credentials : opt vec OpenIdCredential;
   device_registration : opt DeviceRegistrationInfo;
@@ -238,6 +260,7 @@ type IdentityInfo = record {
   authn_methods : vec AuthnMethodData;
   metadata : MetadataMapV2;
   name : opt text;
+  created_at : opt Timestamp;
   authn_method_registration : opt AuthnMethodRegistrationInfo;
   openid_credentials : opt vec OpenIdCredential;
 };
@@ -266,7 +289,7 @@ type IdentityPropertiesReplaceError = variant {
 };
 type InternetIdentityInit = record {
   fetch_root_key : opt bool;
-  openid_google : opt opt OpenIdConfig;
+  openid_google : opt opt GoogleOpenIdConfig;
   is_production : opt bool;
   enable_dapps_explorer : opt bool;
   assigned_user_number_range : opt record { nat64; nat64 };
@@ -275,6 +298,7 @@ type InternetIdentityInit = record {
   canister_creation_cycles_cost : opt nat64;
   analytics_config : opt opt AnalyticsConfig;
   related_origins : opt vec text;
+  openid_configs : opt vec OpenIdConfig;
   captcha_config : opt CaptchaConfig;
   dummy_auth : opt opt DummyAuthConfig;
   register_rate_limit : opt RateLimitConfig;
@@ -305,8 +329,17 @@ type MetadataMapV2 = vec record {
   text;
   variant { Map : MetadataMapV2; String : text; Bytes : blob };
 };
-type OpenIDRegFinishArg = record { jwt : JWT; salt : Salt };
-type OpenIdConfig = record { client_id : text };
+type OpenIDRegFinishArg = record { jwt : JWT; name : text; salt : Salt };
+type OpenIdConfig = record {
+  auth_uri : text;
+  jwks_uri : text;
+  logo : text;
+  name : text;
+  fedcm_uri : opt text;
+  issuer : text;
+  auth_scope : vec text;
+  client_id : text;
+};
 type OpenIdCredential = record {
   aud : Aud;
   iss : Iss;
@@ -372,6 +405,16 @@ type RegistrationFlowNextStep = variant {
 type RegistrationId = text;
 type Salt = blob;
 type SessionKey = PublicKey;
+type SetDefaultAccountError = variant {
+  NoSuchOrigin : record { anchor_number : UserNumber };
+  NoSuchAnchor;
+  InternalCanisterError : text;
+  Unauthorized : principal;
+  NoSuchAccount : record {
+    origin : FrontendHostname;
+    anchor_number : UserNumber;
+  };
+};
 type SignedDelegation = record { signature : blob; delegation : Delegation };
 type SignedIdAlias = record {
   credential_jws : text;
@@ -439,9 +482,10 @@ service : (opt InternetIdentityInit) -> {
         Err : AuthnMethodRegistrationModeEnterError;
       },
     );
-  authn_method_registration_mode_exit : (IdentityNumber) -> (
-      variant { Ok; Err },
-    );
+  authn_method_registration_mode_exit : (
+      IdentityNumber,
+      opt AuthnMethodData,
+    ) -> (variant { Ok; Err : AuthnMethodRegistrationModeExitError });
   authn_method_remove : (IdentityNumber, PublicKey) -> (variant { Ok; Err });
   authn_method_replace : (IdentityNumber, PublicKey, AuthnMethodData) -> (
       variant { Ok; Err : AuthnMethodReplaceError },
@@ -451,6 +495,15 @@ service : (opt InternetIdentityInit) -> {
       PublicKey,
       AuthnMethodSecuritySettings,
     ) -> (variant { Ok; Err : AuthnMethodSecuritySettingsReplaceError });
+  authn_method_session_info : (IdentityNumber) -> (
+      opt AuthnMethodSessionInfo,
+    ) query;
+  authn_method_session_register : (IdentityNumber) -> (
+      variant {
+        Ok : AuthnMethodConfirmationCode;
+        Err : AuthnMethodRegisterError;
+      },
+    );
   check_captcha : (CheckCaptchaArg) -> (
       variant { Ok : IdRegNextStepResult; Err : CheckCaptchaError },
     );
@@ -477,6 +530,9 @@ service : (opt InternetIdentityInit) -> {
     ) query;
   get_anchor_credentials : (UserNumber) -> (AnchorCredentials) query;
   get_anchor_info : (UserNumber) -> (IdentityAnchorInfo);
+  get_default_account : (UserNumber, FrontendHostname) -> (
+      variant { Ok : AccountInfo; Err : GetDefaultAccountError },
+    ) query;
   get_delegation : (UserNumber, FrontendHostname, SessionKey, Timestamp) -> (
       GetDelegationResponse,
     ) query;
@@ -485,7 +541,6 @@ service : (opt InternetIdentityInit) -> {
     ) query;
   get_principal : (UserNumber, FrontendHostname) -> (principal) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
-  http_request_update : (HttpRequest) -> (HttpResponse);
   identity_authn_info : (IdentityNumber) -> (
       variant { Ok : IdentityAuthnInfo; Err },
     ) query;
@@ -549,6 +604,9 @@ service : (opt InternetIdentityInit) -> {
   register : (DeviceData, ChallengeResult, opt principal) -> (RegisterResponse);
   remove : (UserNumber, DeviceKey) -> ();
   replace : (UserNumber, DeviceKey, DeviceData) -> ();
+  set_default_account : (UserNumber, FrontendHostname, opt AccountNumber) -> (
+      variant { Ok : AccountInfo; Err : SetDefaultAccountError },
+    );
   stats : () -> (InternetIdentityStats) query;
   update : (UserNumber, DeviceKey, DeviceData) -> ();
   update_account : (

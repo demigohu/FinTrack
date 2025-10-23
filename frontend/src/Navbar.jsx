@@ -13,8 +13,8 @@ export function Navbar() {
           <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">FinTrack</span>
         </div>
         <div className="flex items-center space-x-6 rtl:space-x-reverse">
-          <Link to="/" className="text-white hover:text-yellow-300 font-medium">Dashboard</Link>
-          <Link to="/btc-wallet" className="text-white hover:text-yellow-300 font-medium">BTC Wallet</Link>
+          {/* <Link to="/" className="text-white hover:text-yellow-300 font-medium">Dashboard</Link>
+          <Link to="/btc-wallet" className="text-white hover:text-yellow-300 font-medium">BTC Wallet</Link> */}
           {!isLoggedIn ? (
             <button type="button" onClick={handleLogin} className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center">Sign In</button>
           ) : (

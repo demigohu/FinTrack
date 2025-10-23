@@ -1,0 +1,65 @@
+type GetUtxosResponse = record {
+  next_page : opt blob;
+  tip_height : nat32;
+  tip_block_hash : blob;
+  utxos : vec Utxo;
+};
+type HttpHeader = record { value : text; name : text };
+type HttpResponse = record {
+  status : nat;
+  body : blob;
+  headers : vec HttpHeader;
+};
+type Outpoint = record { txid : blob; vout : nat32 };
+type Result = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : float64; Err : text };
+type Result_2 = variant { Ok : GetUtxosResponse; Err : text };
+type Result_3 = variant { Ok : record { float64; float64 }; Err : text };
+type Result_4 = variant { Ok : nat64; Err : text };
+type Result_5 = variant { Ok : vec Transaction; Err : text };
+type Transaction = record {
+  id : nat64;
+  is_income : bool;
+  date : text;
+  description : text;
+  currency : text;
+  timestamp : nat64;
+  category : text;
+  amount : float64;
+};
+type TransformArgs = record { context : blob; response : HttpResponse };
+type Utxo = record { height : nat32; value : nat64; outpoint : Outpoint };
+service : () -> {
+  add_expense : (vec float64, vec text, vec text, vec nat64, vec text) -> (
+      Result,
+    );
+  add_income : (vec float64, vec text, vec text, vec nat64, vec text) -> (
+      Result,
+    );
+  add_transaction : (
+      vec float64,
+      vec text,
+      vec text,
+      vec bool,
+      vec nat64,
+      vec text,
+    ) -> (Result);
+  convert_amount : (float64, text, text) -> (Result_1) query;
+  fetch_btc_transactions : () -> (Result_2);
+  get_ai_advice : (text, text, text) -> (Result);
+  get_analysis : () -> (Result_3) query;
+  get_balance : (text, text) -> (Result_1) query;
+  get_btc_balance : () -> (Result_4);
+  get_btc_rates : () -> (Result_3);
+  get_expense : (text, text) -> (Result_1) query;
+  get_expense_report : (text) -> (Result_5) query;
+  get_filtered_transactions : (text, text, text) -> (Result_5) query;
+  get_income : (text, text) -> (Result_1) query;
+  get_income_report : (text) -> (Result_5) query;
+  get_manual_balance : (text) -> (Result_1) query;
+  get_report : () -> (Result_5) query;
+  get_report_by_month : (text) -> (Result_5) query;
+  get_usd_to_idr_rate : () -> (Result_1);
+  set_wallet_address : (text, text) -> (Result);
+  transform : (TransformArgs) -> (HttpResponse) query;
+}
